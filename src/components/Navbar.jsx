@@ -65,7 +65,7 @@ const Navbar = () => {
                         {user ? (
                             <div className="flex items-center space-x-4">
                                 <div className="text-sm text-gray-700">
-                                    Hello, <span className="font-semibold">{user.name}</span>
+                                    Hello, <span className="font-semibold">{user.fullName || user.email || 'User'}</span>
                                     {user.type === 'CARDHOLDER' && <span className="ml-1 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Member</span>}
                                 </div>
                                 <Button variant="ghost" size="sm" onClick={handleLogout}>
