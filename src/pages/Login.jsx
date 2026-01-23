@@ -10,6 +10,7 @@ import { login as googleLogin } from "../services/authService";
 const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isAdmin, setIsAdmin] = useState(false);
     const [error, setError] = useState("");
 
     const { login: authLogin } = useAuth();
@@ -28,10 +29,14 @@ const Login = () => {
         e.preventDefault();
         setError("");
 
-        const result = await authLogin(email, password);
+        const result = await authLogin(email, password, isAdmin);
 
         if (result?.success) {
-            navigate("/");
+            if (isAdmin) {
+                navigate("/admin/dashboard");
+            } else {
+                navigate("/");
+            }
         } else {
             setError(result?.message || "Login failed");
         }
@@ -70,6 +75,19 @@ const Login = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                     />
+
+                    <div className="flex items-center">
+                        <input
+                            id="admin-checkbox"
+                            type="checkbox"
+                            checked={isAdmin}
+                            onChange={(e) => setIsAdmin(e.target.checked)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="admin-checkbox" className="ml-2 block text-sm text-gray-900">
+                            Log in as Admin
+                        </label>
+                    </div>
 
                     {error && (
                         <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
@@ -145,6 +163,7 @@ const Login = () => {
                         onClick={() => {
                             setEmail('admin@emart.com');
                             setPassword('admin');
+                            setIsAdmin(true);
                         }}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-full px-4 py-2 hover:bg-blue-50 transition-colors"
                     >
