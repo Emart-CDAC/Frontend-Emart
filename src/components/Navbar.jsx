@@ -54,6 +54,13 @@ const Navbar = () => {
                             </div>
                         </div>
 
+
+                        {user?.type === 'ADMIN' && (
+                            <Link to="/admin/dashboard" className="text-gray-700 hover:text-blue-600 font-medium">
+                                Admin
+                            </Link>
+                        )}
+
                         {/* Auth Buttons */}
                         {user ? (
                             <div className="flex items-center space-x-4">
@@ -110,6 +117,9 @@ const Navbar = () => {
                 <div className="md:hidden bg-white border-t border-gray-200">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                         <Link to="/" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>Home</Link>
+                        {user?.type === 'ADMIN' && (
+                            <Link to="/admin/dashboard" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>Admin</Link>
+                        )}
                         {CATEGORIES.map(cat => (
                             <Link
                                 key={cat.id}

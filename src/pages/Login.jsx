@@ -24,7 +24,7 @@ const Login = () => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="flex items-center justify-center min-h-[80vh] bg-gray-50">
             <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
@@ -71,6 +71,19 @@ const Login = () => {
                     <p>Demo Credentials:</p>
                     <p>User: john@example.com / password</p>
                     <p>Cardholder: alice@example.com / password</p>
+                    <p>Admin: admin@emart.com / admin</p>
+                </div>
+
+                <div className="mt-6 text-center">
+                    <button
+                        onClick={() => {
+                            setEmail('admin@emart.com');
+                            setPassword('admin');
+                        }}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-full px-4 py-2 hover:bg-blue-50 transition-colors"
+                    >
+                        Demo: Fill Admin Credentials
+                    </button>
                 </div>
             </div>
         </div>

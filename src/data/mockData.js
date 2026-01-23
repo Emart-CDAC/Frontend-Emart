@@ -175,5 +175,14 @@ export const USERS = [
         points: 500, // Starting points
         address: '200 Cardholder Ln',
         cardNumber: 'EMART-1002-3004'
+    },
+    {
+        id: 3,
+        name: 'Admin User',
+        email: 'admin@emart.com',
+        password: 'admin',
+        type: 'ADMIN',
+        points: 0,
+        address: 'HQ'
     }
 ];
