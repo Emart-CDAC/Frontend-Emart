@@ -5,6 +5,16 @@ const AuthContext = createContext();
 
 const API_URL = "http://localhost:8080/api/users";
 
+// Helper to decode JWT
+const decodeToken = (token) => {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload;
+    } catch (e) {
+        return null;
+    }
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -25,21 +35,29 @@ export const AuthProvider = ({ children }) => {
         // 2. Load user from token
         const storedToken = localStorage.getItem('emart_token');
         if (storedToken) {
-            // In a real app, we'd fetch /me. 
-            // For now, let's decode the email from JWT or just assume valid.
-            // Simplified: we'll set a basic user object.
-            // You might want to add a /me endpoint later.
-            setUser({ email: 'authenticated_user' }); 
+            const decoded = decodeToken(storedToken);
+            if (decoded) {
+                setUser({ 
+                    email: decoded.sub, 
+                    role: decoded.role 
+                });
+            }
         }
         setLoading(false);
     }, []);
 
-    const login = async (email, password) => {
+    const login = async (email, password, isAdmin = false) => {
         try {
-            const response = await axios.post(`${API_URL}/login`, { email, password });
+            const url = isAdmin 
+                ? "http://localhost:8080/api/admin/login" 
+                : `${API_URL}/login`;
+            
+            const response = await axios.post(url, { email, password });
             const { token } = response.data;
             localStorage.setItem('emart_token', token);
-            setUser({ email }); 
+            const decoded = decodeToken(token);
+            // Ensure we capture role correctly, admin endpoint returns ROLE_ADMIN in token
+            setUser({ email: decoded?.sub || email, role: decoded?.role || (isAdmin ? "ROLE_ADMIN" : "ROLE_USER") }); 
             return { success: true };
         } catch (error) {
             return { 

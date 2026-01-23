@@ -1,138 +1,196 @@
-import { Link } from 'react-router-dom';
-import { Package, Users, DollarSign, Upload, TrendingUp, ShoppingBag, ArrowRight } from 'lucide-react';
-import Button from '../../components/Button';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-    // Mock Statistics
-    const stats = [
-        { label: 'Total Revenue', value: '$24,500', change: '+12%', icon: DollarSign, color: 'bg-green-100 text-green-600' },
-        { label: 'Active Users', value: '1,234', change: '+5%', icon: Users, color: 'bg-blue-100 text-blue-600' },
-        { label: 'Total Orders', value: '456', change: '+8%', icon: ShoppingBag, color: 'bg-purple-100 text-purple-600' },
-        { label: 'Products', value: '89', change: '+2', icon: Package, color: 'bg-orange-100 text-orange-600' },
-    ];
+    const { user } = useAuth();
+    const navigate = useNavigate();
 
-    const recentOrders = [
-        { id: '#ORD-7829', user: 'Alice Smith', date: 'Oct 24, 2023', total: '$120.50', status: 'Completed' },
-        { id: '#ORD-7830', user: 'Bob Johnson', date: 'Oct 24, 2023', total: '$85.00', status: 'Processing' },
-        { id: '#ORD-7831', user: 'Charlie Brown', date: 'Oct 23, 2023', total: '$210.20', status: 'Completed' },
-        { id: '#ORD-7832', user: 'Diana Prince', date: 'Oct 23, 2023', total: '$50.00', status: 'Pending' },
-    ];
+    const [stats, setStats] = useState(null);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadResult, setUploadResult] = useState(null);
+    const [uploading, setUploading] = useState(false);
+
+    useEffect(() => {
+        if (!user || user.role !== 'ROLE_ADMIN') {
+            navigate('/');
+            return;
+        }
+        fetchDashboardData();
+    }, [user, navigate]);
+
+    const fetchDashboardData = async () => {
+        try {
+            const token = localStorage.getItem('emart_token');
+            const headers = { Authorization: `Bearer ${token}` };
+
+            const [statsRes, ordersRes] = await Promise.all([
+                axios.get('http://localhost:8080/api/admin/dashboard/stats', { headers }),
+                axios.get('http://localhost:8080/api/admin/dashboard/orders?page=0&size=10', { headers })
+            ]);
+
+            setStats(statsRes.data);
+            setOrders(ordersRes.data.content || ordersRes.data);
+        } catch (error) {
+            console.error('Failed to fetch dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFileChange = (e) => {
+        setUploadFile(e.target.files[0]);
+        setUploadResult(null);
+    };
+
+    const handleCsvUpload = async () => {
+        if (!uploadFile) {
+            alert('Please select a file');
+            return;
+        }
+
+        setUploading(true);
+        setUploadResult(null);
+
+        try {
+            const token = localStorage.getItem('emart_token');
+            const formData = new FormData();
+            formData.append('file', uploadFile); // 🔑 MUST be "file"
+
+            const response = await axios.post(
+                'http://localhost:8080/api/admin/products/upload-csv',
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            // Backend returns STRING
+            setUploadResult(response.data);
+            setUploadFile(null);
+
+        } catch (error) {
+            setUploadResult(
+                error.response?.data || 'Upload failed'
+            );
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-xl">Loading dashboard...</div>
+            </div>
+        );
+    }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-                    <p className="text-gray-500">Overview of store performance</p>
-                </div>
-                <div className="flex space-x-4">
-                    <Link to="/admin/upload">
-                        <Button className="flex items-center">
-                            <Upload className="w-4 h-4 mr-2" /> Upload Products
-                        </Button>
-                    </Link>
-                </div>
-            </div>
+        <div className="min-h-screen bg-gray-50 py-8">
+            <div className="max-w-7xl mx-auto px-4">
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((stat, index) => (
-                    <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 rounded-lg ${stat.color}`}>
-                                <stat.icon className="w-6 h-6" />
-                            </div>
-                            <span className="text-green-500 text-sm font-medium flex items-center bg-green-50 px-2 py-1 rounded-full">
-                                <TrendingUp className="w-3 h-3 mr-1" /> {stat.change}
-                            </span>
+                <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+
+                {/* Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white p-6 rounded shadow">
+                        <div className="text-gray-500 text-sm">Total Orders</div>
+                        <div className="text-3xl font-bold">{stats?.totalOrders || 0}</div>
+                    </div>
+                    <div className="bg-white p-6 rounded shadow">
+                        <div className="text-gray-500 text-sm">Total Revenue</div>
+                        <div className="text-3xl font-bold">₹{stats?.totalRevenue?.toFixed(2) || 0}</div>
+                    </div>
+                    <div className="bg-white p-6 rounded shadow">
+                        <div className="text-gray-500 text-sm">Total Users</div>
+                        <div className="text-3xl font-bold">{stats?.totalUsers || 0}</div>
+                    </div>
+                    <div className="bg-white p-6 rounded shadow">
+                        <div className="text-gray-500 text-sm">Pending Orders</div>
+                        <div className="text-3xl font-bold text-orange-600">{stats?.pendingOrders || 0}</div>
+                    </div>
+                </div>
+
+                {/* CSV Upload */}
+                <div className="bg-white p-6 rounded shadow mb-8">
+                    <h2 className="text-xl font-bold mb-4">Upload Products (CSV)</h2>
+
+                    <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileChange}
+                        className="block w-full mb-4"
+                    />
+
+                    <button
+                        onClick={handleCsvUpload}
+                        disabled={!uploadFile || uploading}
+                        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                        {uploading ? 'Uploading...' : 'Upload Products'}
+                    </button>
+
+                    {uploadResult && (
+                        <div className="mt-4 p-4 bg-green-100 text-green-800 rounded">
+                            <p className="font-semibold">{uploadResult}</p>
                         </div>
-                        <h3 className="text-gray-500 text-sm font-medium">{stat.label}</h3>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    </div>
-                ))}
-            </div>
+                    )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Recent Orders */}
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-gray-900">Recent Orders</h2>
-                        <Link to="#" className="text-blue-600 text-sm hover:underline">View All</Link>
+                    <div className="mt-4 text-sm text-gray-600">
+                        <p className="font-semibold">CSV Format:</p>
+                        <p>
+                            ParentCategory, ChildCategory, Brand, ProductName,
+                            ImageURL, NormalPrice, EcardPrice,
+                            Stock, Description, StoreId
+                        </p>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-50 text-gray-500">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">Order ID</th>
-                                    <th className="px-6 py-3 font-medium">Customer</th>
-                                    <th className="px-6 py-3 font-medium">Date</th>
-                                    <th className="px-6 py-3 font-medium">Total</th>
-                                    <th className="px-6 py-3 font-medium">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {recentOrders.map((order) => (
-                                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-gray-900">{order.id}</td>
-                                        <td className="px-6 py-4 text-gray-600">{order.user}</td>
-                                        <td className="px-6 py-4 text-gray-500">{order.date}</td>
-                                        <td className="px-6 py-4 font-medium text-gray-900">{order.total}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                                    order.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                {order.status}
-                                            </span>
+                </div>
+
+                {/* Orders */}
+                <div className="bg-white p-6 rounded shadow">
+                    <h2 className="text-xl font-bold mb-4">Recent Orders</h2>
+
+                    <table className="min-w-full">
+                        <thead className="bg-gray-100">
+                            <tr>
+                                <th className="px-4 py-2 text-left">Order ID</th>
+                                <th className="px-4 py-2 text-left">Customer</th>
+                                <th className="px-4 py-2 text-left">Total</th>
+                                <th className="px-4 py-2 text-left">Status</th>
+                                <th className="px-4 py-2 text-left">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {orders.length > 0 ? (
+                                orders.map(order => (
+                                    <tr key={order.orderId} className="border-t">
+                                        <td className="px-4 py-2">#{order.orderId}</td>
+                                        <td className="px-4 py-2">{order.customer?.fullName || 'N/A'}</td>
+                                        <td className="px-4 py-2">₹{order.totalAmount}</td>
+                                        <td className="px-4 py-2">{order.orderStatus}</td>
+                                        <td className="px-4 py-2">
+                                            {new Date(order.orderDate).toLocaleDateString()}
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="5" className="text-center py-4 text-gray-500">
+                                        No orders found
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
-                {/* Quick Actions / Notifications */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-6">System Status</h2>
-                    <div className="space-y-6">
-                        <div className="flex items-start">
-                            <div className="w-2 h-2 mt-2 rounded-full bg-green-500 mr-3"></div>
-                            <div>
-                                <p className="font-medium text-gray-900">Server Online</p>
-                                <p className="text-sm text-gray-500">Systems running normally</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start">
-                            <div className="w-2 h-2 mt-2 rounded-full bg-yellow-500 mr-3"></div>
-                            <div>
-                                <p className="font-medium text-gray-900">Low Stock Alert</p>
-                                <p className="text-sm text-gray-500">5 products are running low</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start">
-                            <div className="w-2 h-2 mt-2 rounded-full bg-blue-500 mr-3"></div>
-                            <div>
-                                <p className="font-medium text-gray-900">New User Registration</p>
-                                <p className="text-sm text-gray-500">+12 users in last hour</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t border-gray-100">
-                        <h3 className="text-sm font-bold text-gray-900 mb-4">Quick Links</h3>
-                        <div className="space-y-2">
-                            <Link to="#" className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-gray-700">
-                                <span>Manage Users</span>
-                                <ArrowRight className="w-4 h-4" />
-                            </Link>
-                            <Link to="#" className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-gray-700">
-                                <span>Sales Reports</span>
-                                <ArrowRight className="w-4 h-4" />
-                            </Link>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );
