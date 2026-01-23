@@ -141,8 +141,14 @@ const Invoice = () => {
                     <div className="w-64 space-y-2">
                         <div className="flex justify-between text-sm">
                             <span className="text-gray-600">Subtotal</span>
-                            <span className="font-medium">${order.total.toFixed(2)}</span>
+                            <span className="font-medium">${(order.subtotal || order.total).toFixed(2)}</span>
                         </div>
+                        {order.discountFromPoints > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                                <span>Points Redemption ({order.redeemedPoints} pts)</span>
+                                <span>-${order.discountFromPoints.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-lg font-bold border-t border-gray-100 pt-2 mt-2">
                             <span>Total Due</span>
                             <span>${order.total.toFixed(2)}</span>

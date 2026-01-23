@@ -10,6 +10,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Invoice from './pages/Invoice';
 import ExcelUpload from './pages/Admin/ExcelUpload';
+import Dashboard from './pages/Admin/Dashboard';
 
 export const router = createBrowserRouter([
     {
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
             { path: 'cart', element: <Cart /> },
             { path: 'checkout', element: <Checkout /> },
             { path: 'invoice/:id', element: <Invoice /> },
+            { path: 'admin/dashboard', element: <Dashboard /> },
             { path: 'admin/upload', element: <ExcelUpload /> },
         ]
     }

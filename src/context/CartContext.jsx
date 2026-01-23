@@ -11,6 +11,8 @@ export const CartProvider = ({ children }) => {
     // Load cart from local storage? Optional.
     // For now let's keep it in memory or simple persistence.
 
+    const [redeemedPoints, setRedeemedPoints] = useState(0);
+
     const addToCart = (product, quantity = 1) => {
         setCartItems(prev => {
             const existing = prev.find(item => item.id === product.id);
@@ -34,14 +36,23 @@ export const CartProvider = ({ children }) => {
         ));
     };
 
-    const clearCart = () => setCartItems([]);
+    const clearCart = () => {
+        setCartItems([]);
+        setRedeemedPoints(0);
+    }
+
+    const redeemPoints = (points) => {
+        setRedeemedPoints(points);
+    }
 
     // Calculate totals
     const calculateTotal = () => {
         let subtotal = 0;
         let savings = 0;
         let pointsEarned = 0;
-        let pointsUsed = 0; // Future implementation for redemption
+
+        // 100 Points = $1.00 Discount
+        const discountFromPoints = redeemedPoints / 100;
 
         cartItems.forEach(item => {
             // Determine price based on User Type
@@ -57,11 +68,16 @@ export const CartProvider = ({ children }) => {
             }
         });
 
+        // Ensure total doesn't go below zero
+        const total = Math.max(0, subtotal - discountFromPoints);
+
         return {
             subtotal,
             savings,
             pointsEarned,
-            total: subtotal
+            discountFromPoints,
+            redeemedPoints,
+            total
         };
     };
 
@@ -72,6 +88,7 @@ export const CartProvider = ({ children }) => {
             removeFromCart,
             updateQuantity,
             clearCart,
+            redeemPoints,
             calculateTotal
         }}>
             {children}
