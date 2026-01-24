@@ -88,6 +88,31 @@ const Cart = () => {
                                 <span>-${savings.toFixed(2)}</span>
                             </div>
                         )}
+                        {/* Points Redemption UI */}
+                        {user?.type === 'CARDHOLDER' && (
+                            <div className="border-t border-dashed border-gray-200 pt-3 mt-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-sm font-medium text-gray-700">Redeem Points</span>
+                                    <span className="text-xs text-gray-500">Available: {user.points}</span>
+                                </div>
+                                <div className="flex gap-2 mb-1">
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={Math.min(user.points, subtotal * 100)} // Cannot redeem more than subtotal
+                                        step="100" // 100 points steps
+                                        value={calculateTotal().redeemedPoints}
+                                        onChange={(e) => useCart().redeemPoints(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 mb-2">
+                                    <span>0</span>
+                                    <span>{calculateTotal().redeemedPoints} pts (-${(calculateTotal().redeemedPoints / 100).toFixed(2)})</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="pt-3 border-t border-gray-100 flex justify-between font-bold text-lg">
                             <span>Total</span>
                             <span>${total.toFixed(2)}</span>

@@ -12,7 +12,7 @@ const Checkout = () => {
     const { cartItems, calculateTotal, clearCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { total, pointsEarned } = calculateTotal();
+    const { total, pointsEarned, redeemedPoints, discountFromPoints } = calculateTotal();
 
     const [deliveryType, setDeliveryType] = useState('courier'); // courier, pickup
     const [selectedStore, setSelectedStore] = useState(null);
@@ -29,6 +29,9 @@ const Checkout = () => {
             id: orderId,
             items: cartItems,
             total: total,
+            subtotal: calculateTotal().subtotal, // Explicitly save subtotal for proper invoice math
+            discountFromPoints: discountFromPoints,
+            redeemedPoints: redeemedPoints,
             pointsEarned: pointsEarned,
             deliveryType,
             store: selectedStore,

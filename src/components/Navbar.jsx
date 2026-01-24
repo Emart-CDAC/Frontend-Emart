@@ -57,10 +57,37 @@ const Navbar = () => {
 
           {/* DESKTOP MENU */}
           <div className="hidden md:flex items-center space-x-6">
-
             <Link to="/" className="text-gray-700 hover:text-blue-600 font-medium">
               Home
             </Link>
+
+            {user?.type === 'ADMIN' && (
+              <Link to="/admin/dashboard" className="text-gray-700 hover:text-blue-600 font-medium">
+                Admin
+              </Link>
+            )}
+
+            {/* Auth Buttons
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-700">
+                  Hello, <span className="font-semibold">{user.fullName || user.email || 'User'}</span>
+                  {user.type === 'CARDHOLDER' && <span className="ml-1 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Member</span>}
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-1" /> Logout
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link to="/login">
+                  <Button variant="ghost" size="sm">Login</Button>
+                </Link>
+                <Link to="/register">
+                  <Button variant="primary" size="sm">Sign Up</Button>
+                </Link>
+              </div> */}
+            {/* )} */}
 
             {/* Categories */}
             <div className="relative group">
@@ -89,18 +116,13 @@ const Navbar = () => {
 
             {/* RIGHT SECTION */}
             <div ref={profileRef} className="relative flex items-center gap-4">
-
-              {/* Hello Username (ONLY after login) */}
               {user && (
                 <span className="hidden md:block text-sm text-gray-700">
                   Hello,&nbsp;
-                  <span className="font-semibold">
-                    {displayName}
-                  </span>
+                  <span className="font-semibold">{displayName}</span>
                 </span>
               )}
 
-              {/* Cart */}
               <Link to="/cart" className="relative text-gray-600 hover:text-blue-600">
                 <ShoppingCart className="h-6 w-6" />
                 {cartCount > 0 && (
@@ -115,7 +137,6 @@ const Navbar = () => {
                 )}
               </Link>
 
-              {/* Profile Icon */}
               <button
                 type="button"
                 onClick={() => setOpenProfile((prev) => !prev)}
@@ -127,43 +148,45 @@ const Navbar = () => {
               {/* Profile Dropdown */}
               {openProfile && (
                 <div className="absolute right-0 top-14 w-64 bg-white shadow-xl rounded-xl border p-4 z-50">
-
                   {!user ? (
-                    <div className="space-y-3">
-                      <p className="font-semibold text-gray-900">Welcome</p>
-                      <Button
-                        className="w-full"
-                        onClick={() => {
-                          setOpenProfile(false);
-                          navigate('/login');
-                        }}
-                      >
-                        Login
-                      </Button>
-                    </div>
+                    <>
+                      <div className="space-y-3">
+                        <p className="font-semibold text-gray-900">Welcome</p>
+                        <Button
+                          className="w-full"
+                          onClick={() => {
+                            setOpenProfile(false);
+                            navigate('/login');
+                          }}
+                        >
+                          Login
+                        </Button>
+                      </div>
+
+                      {/* Nested Mobile Menu content from original snippet */}
+                      {isMenuOpen && (
+                        <div className="md:hidden bg-white border-t border-gray-200 mt-4">
+                          <div className="px-2 pt-2 pb-3 space-y-1">
+                            <Link to="/" className="block px-3 py-2 rounded-md text-base font-medium" onClick={() => setIsMenuOpen(false)}>Home</Link>
+                            {CATEGORIES.map(cat => (
+                              <Link key={cat.id} to={`/category/${cat.id}`} className="block px-3 py-2 rounded-md text-base" onClick={() => setIsMenuOpen(false)}>
+                                {cat.name}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <>
-                      {/* USER INFO */}
                       <div className="mb-3">
-                        <p className="font-bold text-gray-900">
-                          {displayName}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {user.email}
-                        </p>
+                        <p className="font-bold text-gray-900">{displayName}</p>
+                        <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
-
-                      {/* e-Points */}
                       <div className="flex justify-between items-center bg-blue-50 px-3 py-2 rounded-lg text-sm mb-4">
-                        <span className="text-blue-700 font-medium">
-                          e-Points
-                        </span>
-                        <span className="font-bold text-blue-900">
-                          {user.ePoints ?? 0}
-                        </span>
+                        <span className="text-blue-700 font-medium">e-Points</span>
+                        <span className="font-bold text-blue-900">{user.ePoints ?? 0}</span>
                       </div>
-
-                      {/* Logout */}
                       <button
                         type="button"
                         onClick={() => {
@@ -172,8 +195,7 @@ const Navbar = () => {
                         }}
                         className="w-full flex items-center justify-center gap-2 text-sm text-red-600 hover:bg-red-50 py-2 rounded-lg"
                       >
-                        <LogOut className="w-4 h-4" />
-                        Logout
+                        <LogOut className="w-4 h-4" /> Logout
                       </button>
                     </>
                   )}
@@ -188,30 +210,27 @@ const Navbar = () => {
               {isMenuOpen ? <X /> : <Menu />}
             </button>
           </div>
-
         </div>
-      </div>
 
-      {/* MOBILE MENU */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-white border-t">
-          <div className="px-4 py-3 space-y-2">
-            <Link to="/" onClick={() => setIsMenuOpen(false)}>
-              Home
-            </Link>
-            {CATEGORIES.map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/catalog?category=${cat.id}`}
-                onClick={() => setIsMenuOpen(false)}
-                className="block"
-              >
-                {cat.name}
-              </Link>
-            ))}
+        {/* BOTTOM MOBILE MENU */}
+        {isMenuOpen && (
+          <div className="md:hidden bg-white border-t">
+            <div className="px-4 py-3 space-y-2">
+              <Link to="/" onClick={() => setIsMenuOpen(false)} className="block">Home</Link>
+              {CATEGORIES.map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/catalog?category=${cat.id}`}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block"
+                >
+                  {cat.name}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </nav>
   );
 };
