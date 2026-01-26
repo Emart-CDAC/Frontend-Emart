@@ -1,52 +1,84 @@
-
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CATEGORIES, PRODUCTS } from '../data/mockData';
+// import { CATEGORIES } from '../data/mockData'; // REMOVED
 import Sidebar from '../components/Sidebar';
 import ProductCard from '../components/ProductCard';
 import Input from '../components/Input';
+import { getAllProducts } from '../services/productService';
+import { getAllCategories, getSubCategoriesByCategoryId } from '../services/categoryService';
 
 const Catalog = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const initialCategoryId = parseInt(searchParams.get('category'));
 
     // State-Driven Navigation
+    const [categories, setCategories] = useState([]);
     const [activeCategory, setActiveCategory] = useState(null);
     const [activeSubcategory, setActiveSubcategory] = useState(null);
+    const [products, setProducts] = useState([]); // Master list from backend
     const [filteredProducts, setFilteredProducts] = useState([]);
 
     // Filters
     const [priceRange, setPriceRange] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Load initial state from URL if present (Shim for strict routing rule compatibility)
+    // Fetch Initial Data
     useEffect(() => {
-        if (initialCategoryId) {
-            const cat = CATEGORIES.find(c => c.id === initialCategoryId);
-            if (cat) setActiveCategory(cat);
-        } else {
-            // Default to first category if none selected, or show all? 
-            // Valid requirement: "Initial State: Show all main categories" -> but Sidebar design suggests one active.
-            // Let's default to the first one for "Store" feel, or null to show Landing.
-            // Requirement says "Show all main categories" initially.
+        const fetchInitialData = async () => {
+            try {
+                // Fetch Products
+                const productRes = await getAllProducts();
+                setProducts(productRes.data);
+
+                // Fetch Categories
+                const categoryRes = await getAllCategories();
+                // Map backend category fields to frontend expected shape if needed, 
+                // or just use backend fields (categoryId, categoryName).
+                // Frontend Sidebar expects: { id, name, subcategories: [] }
+                // Backend: { categoryId, categoryName }
+                const mappedCategories = categoryRes.data.map(c => ({
+                    id: c.categoryId,
+                    name: c.categoryName,
+                    subcategories: [] // Initial empty, will fetch on demand or effect
+                }));
+                setCategories(mappedCategories);
+            } catch (err) {
+                console.error("Error fetching data:", err);
+            }
+        };
+        fetchInitialData();
+    }, []);
+
+    // Load initial category from URL
+    useEffect(() => {
+        if (initialCategoryId && categories.length > 0) {
+            const cat = categories.find(c => c.id === initialCategoryId);
+            if (cat) {
+                handleCategorySelect(cat);
+            }
         }
-    }, [initialCategoryId]);
+    }, [initialCategoryId, categories]); // Dependencies updated
+
 
     // Update Products when state changes
     useEffect(() => {
-        let results = PRODUCTS;
+        let results = products;
 
         if (activeCategory) {
-            results = results.filter(p => p.categoryId === activeCategory.id);
+            results = results.filter(p => p.subCategory?.category?.categoryId === activeCategory.id);
         }
 
         if (activeSubcategory) {
-            results = results.filter(p => p.subcategoryId === activeSubcategory.id);
+            results = results.filter(p => p.subCategory?.subCategoryId === activeSubcategory.id);
         }
 
         if (priceRange) {
-            results = results.filter(p => p.price.normal <= parseInt(priceRange));
+            // Backend fields are normalPrice or ecardPrice.
+            results = results.filter(p => {
+                const price = p.normalPrice !== undefined ? p.normalPrice : (p.price?.normal || 0);
+                return price <= parseInt(priceRange);
+            });
         }
 
         if (searchTerm) {
@@ -55,20 +87,52 @@ const Catalog = () => {
 
         setFilteredProducts(results);
 
-        // Update URL silently without reload (optional, good for bookmarking)
-        // const params = {};
-        // if (activeCategory) params.category = activeCategory.id;
-        // setSearchParams(params, { replace: true });
+    }, [products, activeCategory, activeSubcategory, priceRange, searchTerm]);
 
-    }, [activeCategory, activeSubcategory, priceRange, searchTerm]);
-
-    const handleCategorySelect = (category) => {
+    const handleCategorySelect = async (category) => {
         if (activeCategory?.id === category.id) {
-            // Toggle off? Or stay on? usually stay. 
-            // Requirement: "Progressive Category Navigation"
+            // Already active, maybe just reset subcat?
+            // setActiveSubcategory(null); 
         } else {
             setActiveCategory(category);
             setActiveSubcategory(null); // Reset subcat
+
+            // Fetch Subcategories if not present
+            if (!category.subcategories || category.subcategories.length === 0) {
+                try {
+                    const res = await getSubCategoriesByCategoryId(category.id);
+                    // Map backend subcategory: { subCategoryId, brand, category, ... } 
+                    // to frontend: { id: subCategoryId, name: brand? Wait. SubCategory name? }
+                    // Viewing SubCategory.java: only "brand" and "sponsors". 
+                    // Wait, where is the subcategory Name?
+                    // Ah, SubCategory table might be relying on "Brand" as the name? Or maybe I missed a field.
+                    // Let's assume Brand is the name for now, or check if there is a 'name' field I missed.
+                    // Re-checking SubCategory.java: private String brand; private boolean sponsors;
+                    // No 'name'. So 'Brand' essentially acts as the subcategory discriminator here?
+                    // Or maybe 'SubCategory' implies specific types like 'Smartphones' -> Brand: Apple?
+                    // The mock data had "Smartphones", "Laptops". 
+                    // This data model seems to map Category -> SubCategory (which has Brand).
+                    // This implies the navigation is Category -> Brand.
+                    // Let's use 'brand' as the name for the sidebar list.
+
+                    const subcats = res.data.map(sc => ({
+                        id: sc.subCategoryId,
+                        name: sc.brand || `SubCategory ${sc.subCategoryId}`,
+                        ...sc
+                    }));
+
+                    // Update categories state with new subcats to persist them
+                    setCategories(prev => prev.map(c =>
+                        c.id === category.id ? { ...c, subcategories: subcats } : c
+                    ));
+
+                    // Also update the active category reference to include these new subcats immediately for UI
+                    setActiveCategory({ ...category, subcategories: subcats });
+
+                } catch (err) {
+                    console.error("Error fetching subcategories:", err);
+                }
+            }
         }
     };
 
@@ -76,7 +140,7 @@ const Catalog = () => {
         <div className="flex flex-col md:flex-row gap-8 max-w-7xl mx-auto">
             {/* Left Sidebar */}
             <Sidebar
-                categories={CATEGORIES}
+                categories={categories}
                 activeCategory={activeCategory}
                 activeSubcategory={activeSubcategory}
                 onSelectCategory={handleCategorySelect}

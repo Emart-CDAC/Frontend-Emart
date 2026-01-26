@@ -70,7 +70,13 @@ const Register = () => {
             password: formData.password,
             mobile: formData.mobile,
             address: {
-                city: formData.address
+                city: formData.address,
+                town: formData.address, // Using city as town for now
+                state: 'Maharashtra',
+                country: 'India',
+                pincode: '400001',
+                houseNumber: 'N/A',
+                landmark: 'N/A'
             }
         };
 
