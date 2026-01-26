@@ -11,6 +11,8 @@ import Checkout from './pages/Checkout';
 import Invoice from './pages/Invoice';
 import ExcelUpload from './pages/Admin/ExcelUpload';
 import Dashboard from './pages/Admin/Dashboard';
+import Orders from './pages/Orders';
+import EmartCard from './pages/EmartCard';
 
 export const router = createBrowserRouter([
     {
@@ -25,7 +27,9 @@ export const router = createBrowserRouter([
             { path: 'product/:id', element: <ProductDetails /> },
             { path: 'cart', element: <Cart /> },
             { path: 'checkout', element: <Checkout /> },
+            { path: 'orders', element: <Orders /> },
             { path: 'invoice/:id', element: <Invoice /> },
+            { path: 'emart-card', element: <EmartCard /> },
             { path: 'admin/dashboard', element: <Dashboard /> },
             { path: 'admin/upload', element: <ExcelUpload /> },
         ]

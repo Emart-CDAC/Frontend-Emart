@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Menu, X, User as UserIcon, LogOut } from 'lucide-react';
+import { ShoppingCart, Menu, X, User as UserIcon, LogOut, Package, CreditCard } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -187,13 +187,32 @@ const Navbar = () => {
                         <span className="text-blue-700 font-medium">e-Points</span>
                         <span className="font-bold text-blue-900">{user.ePoints ?? 0}</span>
                       </div>
+
+                      <Link
+                        to="/orders"
+                        onClick={() => setOpenProfile(false)}
+                        className="w-full flex items-center gap-3 text-sm text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg mb-1"
+                      >
+                        <Package className="w-4 h-4 text-gray-400" />
+                        My Orders
+                      </Link>
+
+                      <Link
+                        to="/emart-card"
+                        onClick={() => setOpenProfile(false)}
+                        className="w-full flex items-center gap-3 text-sm text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg mb-1"
+                      >
+                        <CreditCard className="w-4 h-4 text-gray-400" />
+                        e-MART Card
+                      </Link>
+
                       <button
                         type="button"
                         onClick={() => {
                           setOpenProfile(false);
                           handleLogout();
                         }}
-                        className="w-full flex items-center justify-center gap-2 text-sm text-red-600 hover:bg-red-50 py-2 rounded-lg"
+                        className="w-full flex items-center gap-3 text-sm text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg"
                       >
                         <LogOut className="w-4 h-4" /> Logout
                       </button>

@@ -84,6 +84,29 @@ const Dashboard = () => {
         }
     };
 
+    const handleStatusUpdate = async (orderId, newStatus) => {
+        try {
+            const token = localStorage.getItem('emart_token');
+            const headers = { Authorization: `Bearer ${token}` };
+
+            // Backend: @PutMapping("/orders/{orderId}/status") with @RequestParam OrderStatus status
+            await axios.put(
+                `http://localhost:8080/api/admin/dashboard/orders/${orderId}/status`,
+                null,
+                {
+                    params: { status: newStatus },
+                    headers
+                }
+            );
+
+            // Refresh dashboard data to show the updated status
+            fetchDashboardData();
+        } catch (error) {
+            console.error('Failed to update status:', error);
+            alert('Failed to update status: ' + (error.response?.data?.message || error.message));
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -174,7 +197,20 @@ const Dashboard = () => {
                                         <td className="px-4 py-2">#{order.orderId}</td>
                                         <td className="px-4 py-2">{order.customer?.fullName || 'N/A'}</td>
                                         <td className="px-4 py-2">₹{order.totalAmount}</td>
-                                        <td className="px-4 py-2">{order.orderStatus}</td>
+                                        <td className="px-4 py-2">
+                                            <select
+                                                value={order.status || order.orderStatus}
+                                                onChange={(e) => handleStatusUpdate(order.orderId, e.target.value)}
+                                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1"
+                                            >
+                                                <option value="pending">Pending</option>
+                                                <option value="confirmed">Confirmed</option>
+                                                <option value="packed">Packed</option>
+                                                <option value="shipped">Shipped</option>
+                                                <option value="delivered">Delivered</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </select>
+                                        </td>
                                         <td className="px-4 py-2">
                                             {new Date(order.orderDate).toLocaleDateString()}
                                         </td>

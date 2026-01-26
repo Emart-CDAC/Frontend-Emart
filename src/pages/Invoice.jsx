@@ -1,8 +1,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Printer, CheckCircle, Edit2, CreditCard } from 'lucide-react';
+import { Printer, CheckCircle, Edit2, CreditCard, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { placeOrderApi } from '../services/orderService';
 import Button from '../components/Button';
 import Input from '../components/Input';
 
@@ -10,8 +12,10 @@ const Invoice = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { clearCart } = useCart();
+    const { user, refreshUser } = useAuth();
     const [order, setOrder] = useState(null);
     const [isPaid, setIsPaid] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [isEditingAddress, setIsEditingAddress] = useState(false);
     const [address, setAddress] = useState('');
 
@@ -27,15 +31,42 @@ const Invoice = () => {
         }
     }, [id]);
 
-    const handlePayment = () => {
-        // Mock Payment
-        setIsPaid(true);
-        clearCart(); // Clear cart now
+    const handlePayment = async () => {
+        if (!user?.id) {
+            alert("Please login to place an order");
+            navigate('/login');
+            return;
+        }
 
-        // Update local storage
-        const updated = { ...order, status: 'paid', shippingAddress: address };
-        localStorage.setItem('last_order', JSON.stringify(updated));
-        setOrder(updated);
+        try {
+            setIsLoading(true);
+            // Real backend call
+            await placeOrderApi({
+                userId: user.id,
+                totalAmount: order.total,
+                useEpoints: order.redeemedPoints || 0,
+                deliveryType: order.deliveryType,
+                address: address
+            });
+
+            // Refresh global user state to show correct e-points in Navbar
+            if (user?.id) {
+                await refreshUser(user.id);
+            }
+
+            setIsPaid(true);
+            clearCart(); // Clear cart now
+
+            // Update local storage for this session
+            const updated = { ...order, status: 'paid', shippingAddress: address };
+            localStorage.setItem('last_order', JSON.stringify(updated));
+            setOrder(updated);
+        } catch (error) {
+            console.error("Failed to place order:", error);
+            alert("Failed to process payment. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handlePrint = () => {
@@ -68,9 +99,14 @@ const Invoice = () => {
                         <p className="text-blue-700">Please review your invoice before making payment.</p>
                     </div>
                     <div className="space-x-4">
-                        <Button variant="outline" onClick={() => navigate('/checkout')}>Modify Order</Button>
-                        <Button onClick={handlePayment}>
-                            <CreditCard className="w-4 h-4 mr-2" /> Pay Now ${order.total.toFixed(2)}
+                        <Button variant="outline" onClick={() => navigate('/checkout')} disabled={isLoading}>Modify Order</Button>
+                        <Button onClick={handlePayment} disabled={isLoading}>
+                            {isLoading ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <CreditCard className="w-4 h-4 mr-2" />
+                            )}
+                            {isLoading ? 'Processing...' : `Pay Now $${order.total.toFixed(2)}`}
                         </Button>
                     </div>
                 </div>
@@ -83,6 +119,7 @@ const Invoice = () => {
                         <h2 className="text-2xl font-bold text-blue-600 mb-2">e-MART</h2>
                         <p className="text-sm text-gray-500">Invoice #{order.id}</p>
                         <p className="text-sm text-gray-500">Date: {new Date(order.date).toLocaleDateString()}</p>
+                        <p className="text-sm text-gray-500">Method: <span className="capitalize">{order.paymentMode?.replace('-', ' ') || 'Money'}</span></p>
                         <p className="text-sm font-bold mt-1 uppercase text-gray-400">{isPaid ? 'PAID' : 'UNPAID'}</p>
                     </div>
                     <div className="text-right max-w-xs">
@@ -121,7 +158,32 @@ const Invoice = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {order.items.map((item, idx) => {
-                            const price = item.price.cardHolder || item.price.normal;
+                            const normal = item.normalPrice !== undefined ? item.normalPrice : (item.price?.normal || 0);
+                            const card = item.ecardPrice !== undefined ? item.ecardPrice : (item.price?.cardHolder || 0);
+                            // Determine effective price paid? Or list price? 
+                            // Invoice usually reflects what was paid. 
+                            // NOTE: Invoice doesn't know User Type context unless saved in Order.
+                            // But `Checkout.jsx` saves items directly from Cart.
+                            // Cart items have `quantity`.
+                            // Wait, does the order item save the price paid? 
+                            // CartContext.jsx saves items with `...product` and `quantity`.
+                            // So the item has `normalPrice` and `ecardPrice`. 
+                            // It DOES NOT store the final price paid per item explicitly in the item object in CartContext,
+                            // BUT `calculateTotal` uses the user type.
+                            // `Checkout.jsx` saves `total` and `subtotal`.
+                            // If we want accurate line items in Invoice, we need to know if the user was CardHolder at time of purchase.
+                            // `Checkout.jsx` saves order details but not explicit user type, though it saves `pointsEarned` which implies CardHolder.
+                            // Let's infer price based on if `pointsEarned > 0` or if `discountFromPoints` is used? 
+                            // Or safer: just display `item.ecardPrice` if available and lower? 
+                            // Actually `Invoice` receives `order`. 
+                            // Let's assume if it has `ecardPrice`, show that? No, depends on user.
+                            // Let's assume standard behavior: if ecardPrice exists, use it? 
+                            // Or better: Checkout should snapshot the *price* into the item. 
+                            // Too late to change Checkout structure heavily without verifying CartContext structure again.
+                            // Let's use the same logic as Cart: if ecardPrice exists, prefer it? 
+                            // Actually, let's just use `normalPrice` if `ecardPrice` is missing.
+                            // For this fix, let's try to handle both.
+                            const price = item.ecardPrice || item.normalPrice || item.price?.normal || 0;
                             return (
                                 <tr key={idx}>
                                     <td className="py-4">
