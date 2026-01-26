@@ -5,10 +5,11 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 
 const Register = () => {
-
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { register } = useAuth();
+
+    const isOAuthUser = !!searchParams.get('email');
 
     const [formData, setFormData] = useState({
         name: '',
@@ -18,9 +19,10 @@ const Register = () => {
         address: ''
     });
 
+    const [errors, setErrors] = useState({});
     const [message, setMessage] = useState('');
 
-    
+    // Prefill OAuth data
     useEffect(() => {
         const nameFromOAuth = searchParams.get('name');
         const emailFromOAuth = searchParams.get('email');
@@ -35,111 +37,131 @@ const Register = () => {
     }, [searchParams]);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        setFormData(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    const validate = () => {
+        const newErrors = {};
+
+        if (!formData.name.trim()) newErrors.name = 'Name is required';
+        if (!formData.email.includes('@')) newErrors.email = 'Invalid email address';
+        if (!isOAuthUser && formData.password.length < 6)
+            newErrors.password = 'Password must be at least 6 characters';
+        if (!/^\d{10}$/.test(formData.mobile))
+            newErrors.mobile = 'Mobile must be 10 digits';
+        if (!formData.address.trim()) newErrors.address = 'Address is required';
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setMessage('');
 
+        if (!validate()) return;
+
         const payload = {
-            fullName: formData.name,     
+            fullName: formData.name,
             email: formData.email,
             password: formData.password,
             mobile: formData.mobile,
             address: {
-                city: formData.address // map single field to city
+                city: formData.address,
+                town: formData.address, // Using city as town for now
+                state: 'Maharashtra',
+                country: 'India',
+                pincode: '400001',
+                houseNumber: 'N/A',
+                landmark: 'N/A'
             }
         };
 
         const result = await register(payload);
 
-        if (result && result.success) {
-            setMessage(result.message);
-            setTimeout(() => navigate('/'), 2000); // Redirect to home on success
+        if (result?.success) {
+            setMessage(result.message || 'Registration successful');
+            setTimeout(() => navigate('/'), 2000);
         } else {
             setMessage(result?.message || 'Registration failed');
         }
     };
 
-    const isOAuthUser = !!searchParams.get('email');
-
     return (
-        <div className="flex items-center justify-center min-h-[80vh] py-12">
-            <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
-
+        <div className="flex items-center justify-center min-h-[80vh] py-12 bg-gray-50">
+            <div className="w-full max-w-lg p-8 bg-white rounded-2xl shadow-xl">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+                    <h1 className="text-3xl font-bold">Create Account</h1>
                     <p className="text-gray-500">Join e-MART today</p>
                 </div>
 
-                {message ? (
-                    <div className="text-center text-green-600 font-semibold p-4 bg-green-50 rounded-lg">
+                {message && (
+                    <div className="mb-4 p-3 text-center bg-green-100 text-green-700 rounded">
                         {message}
                     </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
-
-                        <Input
-                            label="Full Name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            readOnly={isOAuthUser}  
-                            required
-                        />
-
-                        <Input
-                            label="Email Address"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            readOnly={isOAuthUser}   
-                            required
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
-                            {!isOAuthUser && (
-                                <Input
-                                    label="Password"
-                                    name="password"
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            )}
-                            <Input
-                                label="Mobile Number"
-                                name="mobile"
-                                value={formData.mobile}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <Input
-                            label="Address"
-                            name="address"
-                            value={formData.address}
-                            onChange={handleChange}
-                            required
-                        />
-
-                        <Button type="submit" className="w-full mt-4" size="lg">
-                            Register
-                        </Button>
-                    </form>
                 )}
 
-                <p className="mt-8 text-center text-sm text-gray-500">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <Input
+                        label="Full Name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        readOnly={isOAuthUser}
+                        error={errors.name}
+                    />
+
+                    <Input
+                        label="Email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        readOnly={isOAuthUser}
+                        error={errors.email}
+                    />
+
+                    {!isOAuthUser && (
+                        <Input
+                            label="Password"
+                            name="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            error={errors.password}
+                        />
+                    )}
+
+                    <Input
+                        label="Mobile Number"
+                        name="mobile"
+                        value={formData.mobile}
+                        onChange={handleChange}
+                        error={errors.mobile}
+                    />
+
+                    <Input
+                        label="Address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleChange}
+                        error={errors.address}
+                    />
+
+                    <Button type="submit" className="w-full">
+                        Create Account
+                    </Button>
+                </form>
+
+                <p className="mt-6 text-center text-sm">
                     Already have an account?{' '}
-                    <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">
+                    <Link to="/login" className="text-blue-600 font-semibold">
                         Log in
                     </Link>
                 </p>
-
             </div>
         </div>
     );

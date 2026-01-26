@@ -10,6 +10,7 @@ import { login as googleLogin } from "../services/authService";
 const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isAdmin, setIsAdmin] = useState(false);
     const [error, setError] = useState("");
 
     const { login: authLogin } = useAuth();
@@ -28,20 +29,24 @@ const Login = () => {
         e.preventDefault();
         setError("");
 
-        const result = await authLogin(email, password);
+        const result = await authLogin(email, password, isAdmin);
 
         if (result?.success) {
-            navigate("/");
+            if (isAdmin) {
+                navigate("/admin/dashboard");
+            } else {
+                navigate("/");
+            }
         } else {
             setError(result?.message || "Login failed");
         }
     };
 
     return (
-        <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="flex items-center justify-center min-h-[80vh] bg-gray-50">
             <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
 
-               
+
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
                         Welcome Back
@@ -51,7 +56,7 @@ const Login = () => {
                     </p>
                 </div>
 
-                
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <Input
                         label="Email Address"
@@ -71,6 +76,19 @@ const Login = () => {
                         required
                     />
 
+                    <div className="flex items-center">
+                        <input
+                            id="admin-checkbox"
+                            type="checkbox"
+                            checked={isAdmin}
+                            onChange={(e) => setIsAdmin(e.target.checked)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="admin-checkbox" className="ml-2 block text-sm text-gray-900">
+                            Log in as Admin
+                        </label>
+                    </div>
+
                     {error && (
                         <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
                             {error}
@@ -82,14 +100,14 @@ const Login = () => {
                     </Button>
                 </form>
 
-              
+
                 <div className="my-6 flex items-center">
                     <div className="flex-1 border-t border-gray-200"></div>
                     <span className="px-4 text-sm text-gray-400">OR</span>
                     <div className="flex-1 border-t border-gray-200"></div>
                 </div>
 
-               
+
                 <button
                     onClick={googleLogin}
                     className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -121,7 +139,7 @@ const Login = () => {
                     </span>
                 </button>
 
-               
+
                 <p className="mt-8 text-center text-sm text-gray-500">
                     Don't have an account?{" "}
                     <Link
@@ -131,6 +149,28 @@ const Login = () => {
                         Sign up
                     </Link>
                 </p>
+
+
+                <div className="mt-4 pt-4 border-t border-gray-100 text-center text-xs text-gray-400">
+                    <p>Demo Credentials:</p>
+                    <p>User: john@example.com / password</p>
+                    <p>Cardholder: alice@example.com / password</p>
+                    <p>Admin: admin@emart.com / admin</p>
+                </div>
+
+                <div className="mt-6 text-center">
+                    <button
+                        onClick={() => {
+                            setEmail('admin@emart.com');
+                            setPassword('admin');
+                            setIsAdmin(true);
+                        }}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-full px-4 py-2 hover:bg-blue-50 transition-colors"
+                    >
+                        Demo: Fill Admin Credentials
+                    </button>
+                </div>
+
             </div>
         </div>
     );

@@ -1,67 +1,151 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import * as cartService from '../services/cartService';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
     const { user } = useAuth();
     const [cartItems, setCartItems] = useState([]);
+    const [redeemedPoints, setRedeemedPoints] = useState(0);
 
-    // Load cart from local storage? Optional.
-    // For now let's keep it in memory or simple persistence.
-
-    const addToCart = (product, quantity = 1) => {
-        setCartItems(prev => {
-            const existing = prev.find(item => item.id === product.id);
-            if (existing) {
-                return prev.map(item =>
-                    item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
-                );
+    // Sync with backend on mount or user change
+    useEffect(() => {
+        const fetchCart = async () => {
+            if (user?.id) {
+                try {
+                    const response = await cartService.getCart(user.id);
+                    // Map Backend structure to Frontend structure
+                    // Backend returns List<CartItems>
+                    const mappedItems = response.data.map(item => ({
+                        ...item.product, // Includes name, price, etc.
+                        cartItemId: item.cartItemId, // Important for updates/deletes
+                        quantity: item.quantity,
+                        id: item.product.id // Ensure ID consistency
+                    }));
+                    setCartItems(mappedItems);
+                } catch (error) {
+                    console.error("Failed to fetch cart:", error);
+                }
+            } else {
+                setCartItems([]);
             }
-            return [...prev, { ...product, quantity }];
-        });
+        };
+
+        fetchCart();
+    }, [user]);
+
+    const addToCart = async (product, quantity = 1) => {
+        if (user?.id) {
+            try {
+                const response = await cartService.addToCartApi(user.id, product.id, quantity);
+                // Refresh full cart to get the new cartItemId
+                const refreshRes = await cartService.getCart(user.id);
+                const mappedItems = refreshRes.data.map(item => ({
+                    ...item.product,
+                    cartItemId: item.cartItemId,
+                    quantity: item.quantity,
+                    id: item.product.id
+                }));
+                setCartItems(mappedItems);
+            } catch (error) {
+                console.error("Failed to add to cart API:", error);
+            }
+        } else {
+            // Local mode (fallback or just ignore since we protected the button)
+            setCartItems(prev => {
+                const existing = prev.find(item => item.id === product.id);
+                if (existing) {
+                    return prev.map(item =>
+                        item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+                    );
+                }
+                return [...prev, { ...product, quantity }];
+            });
+        }
     };
 
-    const removeFromCart = (productId) => {
-        setCartItems(prev => prev.filter(item => item.id !== productId));
+    const removeFromCart = async (productId) => {
+        const item = cartItems.find(item => item.id === productId);
+        if (user?.id && item?.cartItemId) {
+            try {
+                await cartService.removeFromCartApi(item.cartItemId);
+                setCartItems(prev => prev.filter(i => i.id !== productId));
+            } catch (error) {
+                console.error("Failed to remove from cart API:", error);
+            }
+        } else {
+            setCartItems(prev => prev.filter(item => item.id !== productId));
+        }
     };
 
-    const updateQuantity = (productId, quantity) => {
+    const updateQuantity = async (productId, quantity) => {
         if (quantity < 1) return;
-        setCartItems(prev => prev.map(item =>
-            item.id === productId ? { ...item, quantity } : item
-        ));
+
+        const item = cartItems.find(item => item.id === productId);
+        if (user?.id && item?.cartItemId) {
+            try {
+                await cartService.updateQuantityApi(item.cartItemId, quantity);
+                setCartItems(prev => prev.map(i =>
+                    i.id === productId ? { ...i, quantity } : i
+                ));
+            } catch (error) {
+                console.error("Failed to update quantity API:", error);
+            }
+        } else {
+            setCartItems(prev => prev.map(item =>
+                item.id === productId ? { ...item, quantity } : item
+            ));
+        }
     };
 
-    const clearCart = () => setCartItems([]);
+    const clearCart = () => {
+        setCartItems([]);
+        setRedeemedPoints(0);
+    }
+
+    const redeemPoints = (points) => {
+        setRedeemedPoints(points);
+    }
 
     // Calculate totals
     const calculateTotal = () => {
         let subtotal = 0;
         let savings = 0;
         let pointsEarned = 0;
-        let pointsUsed = 0; // Future implementation for redemption
+
+        // 100 Points = $1.00 Discount
+        const discountFromPoints = redeemedPoints / 100;
 
         cartItems.forEach(item => {
             // Determine price based on User Type
-            const price = (user?.type === 'CARDHOLDER') ? item.price.cardHolder : item.price.normal;
-            const normalPrice = item.price.normal;
+            // Backend: normalPrice, ecardPrice. Mock: price.normal, price.cardHolder
+            const normal = item.normalPrice !== undefined ? item.normalPrice : (item.price?.normal || 0);
+            const card = item.ecardPrice !== undefined ? item.ecardPrice : (item.price?.cardHolder || 0);
+
+            const price = (user?.type === 'CARDHOLDER') ? card : normal;
+            const normalPrice = normal;
 
             subtotal += price * item.quantity;
 
             if (user?.type === 'CARDHOLDER') {
                 savings += (normalPrice - price) * item.quantity;
-                // Points: 10% of purchase amount
-                pointsEarned += (price * item.quantity) * 0.10;
+                // Points: 1% of purchase amount
+                pointsEarned += (price * item.quantity) * 0.01;
             }
         });
+
+        // Ensure total doesn't go below zero
+        const total = Math.max(0, subtotal - discountFromPoints);
 
         return {
             subtotal,
             savings,
             pointsEarned,
-            total: subtotal
+            discountFromPoints,
+            redeemedPoints,
+            total
         };
     };
 
@@ -72,6 +156,7 @@ export const CartProvider = ({ children }) => {
             removeFromCart,
             updateQuantity,
             clearCart,
+            redeemPoints,
             calculateTotal
         }}>
             {children}

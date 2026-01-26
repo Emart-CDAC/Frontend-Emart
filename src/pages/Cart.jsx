@@ -4,6 +4,7 @@ import { Trash2, Plus, Minus, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
+import { getProductImageUrl } from '../services/productService';
 
 const Cart = () => {
     const { cartItems, removeFromCart, updateQuantity, calculateTotal } = useCart();
@@ -30,11 +31,19 @@ const Cart = () => {
                 {/* Cart Items */}
                 <div className="flex-1 space-y-6">
                     {cartItems.map((item) => {
-                        const price = user?.type === 'CARDHOLDER' ? item.price.cardHolder : item.price.normal;
+                        const normal = item.normalPrice !== undefined ? item.normalPrice : (item.price?.normal || 0);
+                        const card = item.ecardPrice !== undefined ? item.ecardPrice : (item.price?.cardHolder || 0);
+                        const price = user?.type === 'CARDHOLDER' ? card : normal;
+
                         return (
                             <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                                 <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                    <img
+                                        src={getProductImageUrl(item.imageUrl || item.image)}
+                                        alt={item.name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=No+Image'; }}
+                                    />
                                 </div>
 
                                 <div className="flex-1 text-center sm:text-left">
@@ -88,6 +97,31 @@ const Cart = () => {
                                 <span>-${savings.toFixed(2)}</span>
                             </div>
                         )}
+                        {/* Points Redemption UI */}
+                        {user?.type === 'CARDHOLDER' && (
+                            <div className="border-t border-dashed border-gray-200 pt-3 mt-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-sm font-medium text-gray-700">Redeem Points</span>
+                                    <span className="text-xs text-gray-500">Available: {user.points}</span>
+                                </div>
+                                <div className="flex gap-2 mb-1">
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={Math.min(user.points, subtotal * 100)} // Cannot redeem more than subtotal
+                                        step="100" // 100 points steps
+                                        value={calculateTotal().redeemedPoints}
+                                        onChange={(e) => useCart().redeemPoints(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 mb-2">
+                                    <span>0</span>
+                                    <span>{calculateTotal().redeemedPoints} pts (-${(calculateTotal().redeemedPoints / 100).toFixed(2)})</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="pt-3 border-t border-gray-100 flex justify-between font-bold text-lg">
                             <span>Total</span>
                             <span>${total.toFixed(2)}</span>

@@ -1,13 +1,51 @@
 
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { CATEGORIES, PRODUCTS } from '../data/mockData';
+// import { CATEGORIES } from '../data/mockData'; // REMOVED
 import ProductCard from '../components/ProductCard';
 import Button from '../components/Button';
+import { getAllProducts } from '../services/productService';
+import { getAllCategories } from '../services/categoryService';
 
 const Home = () => {
-    // Simulate "New Arrivals" using the first few products
-    const newArrivals = PRODUCTS.slice(0, 4);
+    // State for New Arrivals
+    const [newArrivals, setNewArrivals] = useState([]);
+    const [categories, setCategories] = useState([]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch Products
+                const productRes = await getAllProducts();
+                setNewArrivals(productRes.data.slice(0, 4));
+
+                // Fetch Categories
+                const categoryRes = await getAllCategories();
+                setCategories(categoryRes.data);
+            } catch (err) {
+                console.error("Error fetching data:", err);
+            }
+        };
+        fetchData();
+    }, []);
+
+    // Helper to get category image (Backend doesn't have image on Category entity yet based on previous check)
+    // We might need a placeholder or logic to pick an image from a product in that category.
+    // For now, let's use a placeholder or check if I missed image field in Category.java.
+    // Category.java had: categoryId, categoryName, parentCategory. No image.
+    // I can use a consistent placeholder or random Unsplash one for demo.
+    const getCategoryImage = (catId) => {
+        // Deterministic mock images for demo purposes since backend lacks them
+        const images = [
+            'https://images.unsplash.com/photo-1498049381961-a59a96bcb742?w=500&auto=format&fit=crop&q=60',
+            'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=500&auto=format&fit=crop&q=60',
+            'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=500&auto=format&fit=crop&q=60',
+            'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=500&auto=format&fit=crop&q=60',
+            'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&auto=format&fit=crop&q=60'
+        ];
+        return images[catId % images.length] || images[0];
+    };
 
     return (
         <div className="space-y-12">
@@ -42,17 +80,17 @@ const Home = () => {
                     <h2 className="text-3xl font-bold text-gray-900">Shop by Category</h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                    {CATEGORIES.map((cat) => (
-                        <Link key={cat.id} to={`/catalog?category=${cat.id}`} className="group">
+                    {categories.map((cat) => (
+                        <Link key={cat.categoryId} to={`/catalog?category=${cat.categoryId}`} className="group">
                             <div className="relative rounded-xl overflow-hidden aspect-square mb-3 shadow-md">
                                 <img
-                                    src={cat.image}
-                                    alt={cat.name}
+                                    src={getCategoryImage(cat.categoryId)}
+                                    alt={cat.categoryName}
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
                                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-white text-xl font-bold">{cat.name}</span>
+                                    <span className="text-white text-xl font-bold">{cat.categoryName}</span>
                                 </div>
                             </div>
                         </Link>

@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Upload, FileSpreadsheet, CheckCircle, XCircle } from 'lucide-react';
 import Button from '../../components/Button';
 
@@ -60,7 +61,10 @@ const ExcelUpload = () => {
 
     return (
         <div className="max-w-2xl mx-auto py-12">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Bulk Product Upload</h1>
+            <Link to="/admin/dashboard" className="text-gray-500 hover:text-blue-600 mb-6 inline-flex items-center">
+                &larr; Back to Dashboard
+            </Link>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 mt-2">Bulk Product Upload</h1>
             <p className="text-gray-500 mb-8">Upload your product inventory via Excel template.</p>
 
             <div
