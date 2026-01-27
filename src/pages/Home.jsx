@@ -49,13 +49,13 @@ const Home = () => {
         const imageMap = {
             'electronics': 'electronic.jpg',
             'fashion': 'fashion.jpg',
-            'home': 'home.jpg',
+            'homeappliance': 'home.jpg',
             'beauty&personalcare': 'beautyandpersonalcare.jpg', 
             'beautyandpersonalcare': 'beautyandpersonalcare.jpg',
-            'toys': 'toys.jpg',
+            'toysandbabyproducts': 'toys.jpg',
             'groceries': 'groceries.jpg',
             'decor': 'decor.jpg', 
-            'stationery': 'stationery.jpg'
+            'stationary': 'stationery.jpg'
         };
 
         const filename = imageMap[name];
