@@ -15,14 +15,36 @@ const Invoice = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch order by ID
+  // Fetch order and products to calculate savings
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchOrderAndProducts = async () => {
       try {
         setLoading(true);
-        const { data } = await getOrderByIdAPI(id);
-        console.log('📄 Order loaded:', data);
-        setOrder(data);
+        const { data: orderData } = await getOrderByIdAPI(id);
+        
+        // Fetch all products to augment order items with current normal price (Best effort for "You Saved")
+        // Ideally backend should store snapshot of MRP at purchase.
+        try {
+            const { getAllProducts } = await import('../services/productService');
+            const { data: productsData } = await getAllProducts();
+            
+            // Map products to items
+            if (orderData.items) {
+                orderData.items = orderData.items.map(item => {
+                    const product = productsData.find(p => p.id === item.productId);
+                    return {
+                        ...item,
+                        normalPrice: product ? (product.normalPrice || product.price?.normal) : item.price,
+                        image: product ? product.imageUrl : null
+                    };
+                });
+            }
+        } catch (pErr) {
+            console.warn("Could not fetch products for invoice details", pErr);
+        }
+
+        console.log('📄 Order loaded:', orderData);
+        setOrder(orderData);
       } catch (err) {
         console.error('Failed to load order:', err);
         setError('Order not found or failed to load.');
@@ -31,7 +53,7 @@ const Invoice = () => {
       }
     };
 
-    if (id) fetchOrder();
+    if (id) fetchOrderAndProducts();
   }, [id]);
 
   // Refresh user e-points once (after order)
@@ -73,6 +95,26 @@ const Invoice = () => {
 
   const orderItems = order.items || [];
   const isPaid = order.paymentStatus === 'PAID';
+  
+  // Calculate Savings
+  const totalMrp = orderItems.reduce((acc, item) => acc + ((item.normalPrice || item.price) * item.quantity), 0);
+  const totalSavings = totalMrp - order.totalAmount - (order.epointsUsed || 0); // Approx
+  // epointsUsed is part of payment, so totalAmount + epointsUsed = Actual Value? 
+  // No, totalAmount is what paid. epointsUsed reduces totalAmount? 
+  // In `OrdersService`: totalAmount = cart.finalPayableAmount. 
+  // Cart.finalAmount = totalAmount - epointsDiscount.
+  // So totalAmount is the Cash component.
+  // Total Value = Total Mrp. 
+  // Savings = Total Mrp - (Total Amount + Epoints Value?? No, epoints is a discount).
+  // Savings = Total Mrp - Total Amount. (Wait, if I pay 0 cash and 100 pts, do I save 100? Yes technically).
+  // Let's stick to Product Discount + Coupon.
+  // Product Discount = (Normal Price - Effective Price) * Qty.
+  
+  const productSavings = orderItems.reduce((acc, item) => {
+      const normal = item.normalPrice || item.price;
+      const soldAt = item.price;
+      return acc + ((normal - soldAt) * item.quantity);
+  }, 0);
 
   const formatAddress = () => {
     if (order.deliveryType === 'HOME_DELIVERY') {
@@ -197,19 +239,33 @@ const Invoice = () => {
                     </tr>
                 </thead>
                 <tbody className="text-gray-700">
-                    {orderItems.map((item, idx) => (
-                    <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
-                        <td className="py-4 pl-2 font-medium">
-                            {item.productName}
-                            <span className="block text-xs text-gray-400 font-normal mt-0.5">ID: {item.productId}</span>
-                        </td>
-                        <td className="py-4 text-right align-top">{item.quantity}</td>
-                        <td className="py-4 text-right align-top">₹{item.price?.toLocaleString()}</td>
-                        <td className="py-4 text-right align-top font-bold text-gray-900 pr-2">
-                        ₹{(item.price * item.quantity).toLocaleString()}
-                        </td>
-                    </tr>
-                    ))}
+                    {orderItems.map((item, idx) => {
+                        const original = item.normalPrice || item.price;
+                        const isDiscounted = original > item.price;
+                        
+                        return (
+                        <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                            <td className="py-4 pl-2 font-medium">
+                                {item.productName}
+                                <span className="block text-xs text-gray-400 font-normal mt-0.5">ID: {item.productId}</span>
+                            </td>
+                            <td className="py-4 text-right align-top">{item.quantity}</td>
+                            <td className="py-4 text-right align-top">
+                                {isDiscounted ? (
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-xs text-gray-400 line-through">₹{original.toLocaleString()}</span>
+                                        <span>₹{item.price?.toLocaleString()}</span>
+                                    </div>
+                                ) : (
+                                    <span>₹{item.price?.toLocaleString()}</span>
+                                )}
+                            </td>
+                            <td className="py-4 text-right align-top font-bold text-gray-900 pr-2">
+                            ₹{(item.price * item.quantity).toLocaleString()}
+                            </td>
+                        </tr>
+                        );
+                    })}
                 </tbody>
                 </table>
             </div>
@@ -223,6 +279,13 @@ const Invoice = () => {
         {/* Totals */}
         <div className="flex flex-col md:flex-row justify-end border-t border-gray-100 pt-8">
           <div className="w-full md:w-80 space-y-3">
+             {productSavings > 0 && (
+              <div className="flex justify-between text-green-600 font-medium">
+                <span>Total Savings</span>
+                <span>- ₹{productSavings.toFixed(2)}</span>
+              </div>
+            )}
+            
             {order.epointsUsed > 0 && (
               <div className="flex justify-between text-green-600 text-sm font-medium bg-green-50/50 p-2 rounded-lg">
                 <span>E-Points Used</span>

@@ -59,7 +59,7 @@ const Cart = () => {
                         // Sometimes backend might send 'qty' or 'quantity'
                         const quantity = item.quantity || item.qty || 1;
 
-                        return (
+                            return (
                             <div key={item.cartItemId} className="group flex flex-col sm:flex-row items-center gap-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
                                 
                                 <div className="w-full sm:w-32 h-32 bg-gray-50 rounded-xl overflow-hidden shadow-inner shrink-0 relative">
@@ -72,7 +72,20 @@ const Cart = () => {
 
                                 <div className="flex-1 w-full text-center sm:text-left">
                                     <h3 className="font-bold text-lg text-gray-900 mb-1 leading-tight">{productName}</h3>
-                                    <div className="text-2xl font-bold text-gray-900 mb-2">₹{price.toLocaleString()}</div>
+                                    
+                                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 mb-2 justify-center sm:justify-start">
+                                        {(item.discountedPrice && item.price && item.discountedPrice < item.price) ? (
+                                            <>
+                                                <span className="text-sm text-gray-400 line-through">₹{item.price.toLocaleString()}</span>
+                                                <span className="text-2xl font-bold text-gray-900">₹{item.discountedPrice.toLocaleString()}</span>
+                                                <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                                                    {Math.round(((item.price - item.discountedPrice) / item.price) * 100)}% OFF
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="text-2xl font-bold text-gray-900">₹{(item.discountedPrice || item.price).toLocaleString()}</span>
+                                        )}
+                                    </div>
 
                                     {item.purchaseType !== 'NORMAL' && (
                                         <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 mb-3">
@@ -122,13 +135,21 @@ const Cart = () => {
 
                         <div className="space-y-4 text-gray-600">
                             <div className="flex justify-between">
-                                <span>Subtotal</span>
-                                <span className="font-medium text-gray-900">₹{displayMrp}</span>
+                                <span>Total MRP</span>
+                                <span className="font-medium text-gray-900">₹{cartSummary.totalMrp || 0}</span>
                             </div>
+
+                            {/* Offer Discount (MRP - Offer Price) */}
+                            {cartSummary.offerDiscount > 0 && (
+                                <div className="flex justify-between text-green-600">
+                                    <span>Offer Discount</span>
+                                    <span>- ₹{cartSummary.offerDiscount}</span>
+                                </div>
+                            )}
 
                             {displayEpointDisc > 0 && (
                                 <div className="flex justify-between text-green-600 bg-green-50 p-2 rounded-lg">
-                                    <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 fill-current" /> Discount</span>
+                                    <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 fill-current" /> E-Point Discount</span>
                                     <span className="font-bold">- ₹{displayEpointDisc}</span>
                                 </div>
                             )}
@@ -138,10 +159,16 @@ const Cart = () => {
                                 <span className="font-medium text-gray-900">₹{displayPlatformFee}</span>
                             </div>
 
+                            {/* GST Display */}
+                            <div className="flex justify-between">
+                                <span>GST (10%)</span>
+                                <span className="font-medium text-gray-900">₹{cartSummary.gstAmount || 0}</span>
+                            </div>
+
                             <div className="h-px bg-gray-200 my-4"></div>
 
                             <div className="flex justify-between items-baseline mb-2">
-                                <span className="text-lg font-bold text-gray-800">Total</span>
+                                <span className="text-lg font-bold text-gray-800">Total Amount</span>
                                 <span className="text-2xl font-bold text-blue-600">₹{displayFinalAmount}</span>
                             </div>
                              <p className="text-xs text-gray-400 text-right mb-6">Inclusive of all taxes</p>

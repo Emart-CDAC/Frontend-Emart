@@ -115,11 +115,14 @@ const Navbar = () => {
             {/* )} */}
 
             {/* Categories */}
-            <div className="relative group">
-              <button className="text-gray-700 hover:text-blue-600 font-medium">
+            <div className="relative group h-full flex items-center">
+              <Link 
+                to="/catalog"
+                className="text-gray-700 hover:text-blue-600 font-medium py-2"
+              >
                 Categories
-              </button>
-              <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block border">
+              </Link>
+              <div className="absolute left-0 top-full w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block border -mt-1">
                 {categories.map((cat) => (
                   <Link
                     key={cat.categoryId}
