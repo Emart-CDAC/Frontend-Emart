@@ -14,7 +14,8 @@ const ProductCard = ({ product }) => {
     const { addToCart } = useCart();
     const navigate = useNavigate();
 
-    const handleAddToCart = () => {
+    const handleAddToCart = (e) => {
+        e.preventDefault(); // Prevent link navigation
         if (!user) {
             navigate('/login');
             return;
@@ -22,76 +23,84 @@ const ProductCard = ({ product }) => {
         addToCart(product);
     };
 
-    // Removed local helper in favor of centralized one
-
-
     const isCardHolder = user?.type === 'CARDHOLDER';
 
-    // Determine price based on schema (Backend: flat fields, Mock: nested object)
-    const normalPrice = product.normalPrice !== undefined ? product.normalPrice : product.price?.normal;
-    const cardPrice = product.ecardPrice !== undefined ? product.ecardPrice : product.price?.cardHolder;
+    // Determine pricing
+    const discountPercent = product.discountPercent || 0;
+    const normalPrice = product.normalPrice !== undefined ? product.normalPrice : (product.price?.normal || 0);
+    
+    // Calculate effective price (Frontend calculation to match Backend logic)
+    let effectivePrice = normalPrice;
+    if (discountPercent > 0) {
+        effectivePrice = normalPrice - (normalPrice * discountPercent / 100);
+    }
 
-    const price = isCardHolder ? cardPrice : normalPrice;
-    const originalPrice = normalPrice;
+    // Cardholder logic: If card price is lower than effective price, they might pay that? 
+    // Or does discount override? Assuming discount applies to normal price.
+    // Let's display effective price as the main selling price.
+    const priceToDisplay = effectivePrice;
+    const isDiscounted = discountPercent > 0;
 
     const imageUrl = getProductImageUrl(product.imageUrl || product.image);
-    const rating = product.rating || 4.5; // Default if missing
-    // Backend has brand on subCategory
+    const rating = product.rating || 4.5;
     const brand = product.brand || product.subCategory?.brand || "Generic";
 
     return (
         <motion.div
-            whileHover={{ y: -5, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
-            transition={{ duration: 0.2 }}
-            className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 flex flex-col h-full"
+            whileHover={{ y: -8 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="bg-white rounded-2xl shadow-sm hover:shadow-xl overflow-hidden border border-gray-100 flex flex-col h-full group"
         >
-            <Link to={`/product/${product.id}`}>
-                <div className="relative h-48 overflow-hidden bg-gray-200">
-                    <motion.img
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ duration: 0.4 }}
-                        src={imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=No+Image'; }}
-                    />
-                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center shadow-sm">
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400 mr-1" />
-                        <span className="text-xs font-bold text-gray-700">{rating}</span>
+            <Link to={`/product/${product.id}`} className="relative h-56 overflow-hidden bg-gray-50 flex items-center justify-center p-4">
+                <motion.img
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ duration: 0.5 }}
+                    src={imageUrl}
+                    alt={product.name}
+                    className="w-full h-full object-contain mix-blend-multiply"
+                    onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=No+Image'; }}
+                />
+                
+                {/* Discount Badge */}
+                {isDiscounted && (
+                    <div className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow-md">
+                        {discountPercent}% OFF
                     </div>
+                )}
+                
+                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm border border-gray-100">
+                    <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 mr-1" />
+                    <span className="text-xs font-bold text-gray-700">{rating}</span>
                 </div>
             </Link>
 
-            <div className="p-4 flex flex-col flex-grow">
-                <Link to={`/product/${product.id}`}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1 hover:text-blue-600 line-clamp-1">{product.name}</h3>
+            <div className="p-5 flex flex-col flex-grow relative">
+                <Link to={`/product/${product.id}`} className="block">
+                    <h3 className="text-gray-900 font-bold mb-1 group-hover:text-blue-600 transition-colors line-clamp-1 text-lg">
+                        {product.name}
+                    </h3>
                 </Link>
-                <p className="text-sm text-gray-500 mb-2">{brand}</p>
+                <p className="text-sm text-gray-500 mb-3">{brand}</p>
 
-                <div className="mt-auto">
-                    {isCardHolder && (
-                        <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm text-gray-400 line-through">${originalPrice}</span>
-                            <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                                Save ${(originalPrice - price).toFixed(2)}
-                            </span>
-                        </div>
-                    )}
-
+                <div className="mt-auto pt-3 border-t border-dashed border-gray-100">
                     <div className="flex items-center justify-between mb-4">
-                        <span className="text-xl font-bold text-gray-900">${price}</span>
-                        {isCardHolder && product.pointsRedemption && (
-                            <span className="text-xs text-blue-600 font-medium">
-                                Or {product.pointsRedemption.points} pts + ${product.pointsRedemption.cashComponent}
-                            </span>
-                        )}
+                        <div className="flex flex-col">
+                            {isDiscounted ? (
+                                <>
+                                    <span className="text-xs text-gray-400 line-through font-medium">₹{normalPrice}</span>
+                                    <span className="text-2xl font-bold text-gray-900">₹{priceToDisplay.toFixed(2)}</span>
+                                </>
+                            ) : (
+                                <span className="text-2xl font-bold text-gray-900">₹{normalPrice}</span>
+                            )}
+                        </div>
+                        
+                         {/* Optional points display if needed, removing card holder specific for now to focus on discount */}
                     </div>
 
                     <Button
-                        variant="primary"
-                        size="sm"
-                        className="w-full"
                         onClick={handleAddToCart}
+                        className="w-full rounded-xl py-2.5 font-semibold shadow-none bg-gray-900 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
                         <ShoppingCart className="w-4 h-4 mr-2" />
                         Add to Cart

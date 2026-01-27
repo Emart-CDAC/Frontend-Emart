@@ -17,7 +17,16 @@ export const searchProducts = (query) => {
 
 export const getProductImageUrl = (imagePath) => {
     if (!imagePath) return '';
-    // If it's already a full URL (like from Unsplash in mock data), return it
+    
+    // Upgrade Unsplash URLs for better quality
+    if (imagePath.includes('images.unsplash.com')) {
+        let enhancedUrl = imagePath;
+        enhancedUrl = enhancedUrl.replace('w=500', 'w=1080'); // Increase width
+        enhancedUrl = enhancedUrl.replace('q=60', 'q=80');     // Increase quality
+        return enhancedUrl;
+    }
+
+    // If it's already a full URL (non-Unsplash), return it
     if (imagePath.startsWith('http')) return imagePath;
 
     // Clean path
