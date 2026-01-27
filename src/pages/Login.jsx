@@ -16,13 +16,43 @@ const Login = () => {
     const { login: authLogin } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { refreshUser } = useAuth(); // Need access to direct state update
 
     useEffect(() => {
-        const urlError = searchParams.get('error');
-        if (urlError) {
-            setError(urlError);
+        const token = searchParams.get('token');
+        const errorParam = searchParams.get('error');
+
+        if (token) {
+            localStorage.setItem('emart_token', token);
+            
+            const handleSSOSuccess = async () => {
+                try {
+                    // Robust decoding (same as AuthContext fix)
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    const decoded = JSON.parse(jsonPayload);
+                    
+                    if (decoded?.userId) {
+                        // AWAIT the refresh to ensure state is updated before navigation
+                        await refreshUser(decoded.userId, decoded.sub, decoded.role);
+                        navigate('/'); 
+                    } else {
+                        throw new Error("Missing userId in token");
+                    }
+                } catch (e) {
+                    console.error("SSO Login Error:", e);
+                    setError("Failed to verify SSO login. Please try again.");
+                }
+            };
+
+            handleSSOSuccess();
+        } else if (errorParam) {
+            setError(errorParam);
         }
-    }, [searchParams]);
+    }, [searchParams, refreshUser, navigate]);
 
 
     const handleSubmit = async (e) => {

@@ -1,247 +1,436 @@
-
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { STORES } from '../data/mockData';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import { Truck, Store, CreditCard, Coins, Split } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import Button from "../components/Button";
+import {
+  placeOrderAPI,
+  createRazorpayOrderAPI,
+  getStoresAPI,
+  getAddressesAPI,
+  addAddressAPI,
+} from "../services/api";
 
 const Checkout = () => {
-    const { cartItems, calculateTotal, redeemPoints } = useCart();
-    const { user } = useAuth();
-    const navigate = useNavigate();
+  const { cartItems, cartSummary } = useCart();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-    const [deliveryType, setDeliveryType] = useState('courier'); // courier, pickup
-    const [selectedStore, setSelectedStore] = useState(null);
-    const [address, setAddress] = useState(user?.address || '');
-    const [paymentMode, setPaymentMode] = useState('money'); // money, points, split
+  // Wizard
+  const [step, setStep] = useState(1);
 
-    const { subtotal, redeemedPoints, discountFromPoints, total, pointsEarned } = calculateTotal();
-    const shippingFee = deliveryType === 'courier' ? 10 : 0;
-    const finalTotal = total + shippingFee;
+  // Selection
+  const [deliveryType, setDeliveryType] = useState("HOME_DELIVERY");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [selectedStore, setSelectedStore] = useState(null);
 
-    const availablePoints = user?.ePoints || 0;
-    const pointsNeededForFull = Math.ceil(subtotal * 100);
+  // Data
+  const [addresses, setAddresses] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [showAddAddress, setShowAddAddress] = useState(false);
 
-    // Sync context redeemedPoints when paymentMode changes
-    useEffect(() => {
-        if (paymentMode === 'money') {
-            redeemPoints(0);
-        } else if (paymentMode === 'points') {
-            // Redeem exactly what is needed or all available
-            redeemPoints(Math.min(availablePoints, pointsNeededForFull));
-        }
-    }, [paymentMode, availablePoints, pointsNeededForFull, redeemPoints]);
+  const [newAddress, setNewAddress] = useState({
+    houseNumber: "",
+    landmark: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
 
-    if (cartItems.length === 0) {
-        return <div className="text-center py-20">Cart is empty</div>;
+  // ===============================
+  // LOAD DATA
+  // ===============================
+  useEffect(() => {
+    if (!user?.id) return;
+
+    if (deliveryType === "HOME_DELIVERY") {
+      loadAddresses();
+    } else {
+      loadStores();
     }
+  }, [deliveryType, user?.id]);
 
-    const handlePlaceOrder = () => {
-        const orderId = Math.floor(Math.random() * 100000);
-        const orderDetails = {
-            id: orderId,
-            items: cartItems,
-            total: finalTotal,
-            subtotal: subtotal,
-            discountFromPoints: discountFromPoints,
-            redeemedPoints: redeemedPoints,
-            pointsEarned: pointsEarned,
-            deliveryType,
-            store: selectedStore,
-            shippingAddress: address,
-            paymentMode,
-            date: new Date().toISOString(),
-            status: 'pending'
-        };
+  const loadAddresses = async () => {
+    try {
+      const res = await getAddressesAPI(user.id);
+      console.log("📍 Addresses loaded:", res.data); // DEBUG
+      // Ensure res.data is an array
+      setAddresses(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("❌ Failed to load addresses:", err);
+      alert("Failed to load addresses");
+      setAddresses([]);
+    }
+  };
 
-        localStorage.setItem('last_order', JSON.stringify(orderDetails));
-        navigate(`/invoice/${orderId}`);
-    };
+  const loadStores = async () => {
+    try {
+      const res = await getStoresAPI();
+      setStores(res.data);
+    } catch {
+      alert("Failed to load stores");
+    }
+  };
 
-    return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+  // ===============================
+  // ADD ADDRESS
+  // ===============================
+  const handleAddAddress = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await addAddressAPI(user.id, newAddress);
+      setAddresses([...addresses, res.data]);
+      setShowAddAddress(false);
+      setNewAddress({
+        houseNumber: "",
+        landmark: "",
+        city: "",
+        state: "",
+        pincode: "",
+      });
+    } catch {
+      alert("Failed to add address");
+    }
+  };
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    {/* Delivery Option */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <Truck className="w-5 h-5 text-blue-600" /> Delivery Method
-                        </h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all ${deliveryType === 'courier' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
-                                onClick={() => setDeliveryType('courier')}
-                            >
-                                <Truck className="w-6 h-6 mb-2" />
-                                <span className="font-semibold text-sm">Courier Delivery</span>
-                            </button>
-                            <button
-                                className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all ${deliveryType === 'pickup' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
-                                onClick={() => setDeliveryType('pickup')}
-                            >
-                                <Store className="w-6 h-6 mb-2" />
-                                <span className="font-semibold text-sm">Store Pickup</span>
-                            </button>
-                        </div>
-                    </div>
+  // ===============================
+  // PLACE ORDER
+  // ===============================
+  // ===============================
+  // PLACE ORDER
+  // ===============================
+  // Guard against double submission
+  const processingRef = useState({ current: false })[0]; // Using useState to mimic useRef behavior since useRef import is missing or tricky to add without breaking existing imports
 
-                    {/* Address / Store Selection */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        {deliveryType === 'courier' ? (
-                            <div className="space-y-4">
-                                <h2 className="text-xl font-bold">Shipping Address</h2>
-                                <Input
-                                    label="Full Address"
-                                    value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
-                                    placeholder="Enter your delivery address"
-                                    required
-                                />
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <h2 className="text-xl font-bold">Select Store</h2>
-                                <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                                    {STORES.map(store => (
-                                        <label key={store.id} className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${selectedStore?.id === store.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                            <input
-                                                type="radio"
-                                                name="store"
-                                                className="mt-1 mr-3 h-4 w-4 text-blue-600"
-                                                checked={selectedStore?.id === store.id}
-                                                onChange={() => setSelectedStore(store)}
-                                            />
-                                            <div>
-                                                <div className="font-bold text-gray-900">{store.name}</div>
-                                                <div className="text-sm text-gray-600">{store.address}, {store.city}</div>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
+  const handlePlaceOrder = async () => {
+    try {
+      if (processingRef.current) return;
+      
+      if (!user?.id) {
+        alert("User not logged in");
+        return;
+      }
 
-                    {/* Payment Mode Selection */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <CreditCard className="w-5 h-5 text-blue-600" /> Payment Mode
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <button
-                                className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMode === 'money' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
-                                onClick={() => setPaymentMode('money')}
-                            >
-                                <CreditCard className="w-6 h-6" />
-                                <span className="font-semibold text-sm">Money Only</span>
-                            </button>
-                            <button
-                                disabled={availablePoints < 100}
-                                className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${availablePoints < 100 ? 'opacity-50 grayscale cursor-not-allowed' : ''} ${paymentMode === 'points' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
-                                onClick={() => setPaymentMode('points')}
-                            >
-                                <Coins className="w-6 h-6" />
-                                <span className="font-semibold text-sm">e-Points Only</span>
-                            </button>
-                            <button
-                                disabled={availablePoints < 100}
-                                className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${availablePoints < 100 ? 'opacity-50 grayscale cursor-not-allowed' : ''} ${paymentMode === 'split' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
-                                onClick={() => setPaymentMode('split')}
-                            >
-                                <Split className="w-6 h-6" />
-                                <span className="font-semibold text-sm">Split (Points + Money)</span>
-                            </button>
-                        </div>
+      // 🛑 VALIDATION
+      if (deliveryType === "HOME_DELIVERY" && !selectedAddress) {
+        alert("Please select a delivery address.");
+        return;
+      }
+      if (deliveryType === "STORE" && !selectedStore) {
+        alert("Please select a store for pickup.");
+        return;
+      }
 
-                        {/* Split Payment Slider */}
-                        {paymentMode === 'split' && (
-                            <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-sm font-medium text-gray-700">Points to Redeem</span>
-                                    <span className="text-sm font-bold text-blue-600">{redeemedPoints} pts</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max={Math.min(availablePoints, pointsNeededForFull)}
-                                    step="100"
-                                    value={redeemedPoints}
-                                    onChange={(e) => redeemPoints(parseInt(e.target.value))}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                />
-                                <div className="flex justify-between text-xs text-gray-500 mt-2">
-                                    <span>$0.00 discount</span>
-                                    <span>-${discountFromPoints.toFixed(2)} discount</span>
-                                </div>
-                            </div>
-                        )}
+      processingRef.current = true;
 
-                        {paymentMode === 'points' && availablePoints < pointsNeededForFull && (
-                            <div className="mt-4 p-3 bg-amber-50 rounded-lg text-amber-700 text-xs flex items-center gap-2">
-                                <Coins className="w-4 h-4" />
-                                Note: You only have {availablePoints} points. The remaining ${(subtotal - (availablePoints / 100)).toFixed(2)} must be paid with money.
-                            </div>
-                        )}
-                    </div>
-                </div>
+      const payload = {
+        userId: user.id,
+        deliveryType,
+        paymentMethod,
+        addressId:
+          deliveryType === "HOME_DELIVERY"
+            ? selectedAddress?.addressId
+            : null,
+        storeId:
+          deliveryType === "STORE"
+            ? selectedStore?.storeId
+            : null,
+      };
 
-                {/* Order Summary Side */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 sticky top-24">
-                        <h2 className="text-xl font-bold mb-6">Payment Summary</h2>
+      console.log("🏠 Selected Address:", selectedAddress); // DEBUG
+      console.log("📦 Placing Order Payload:", payload);
 
-                        <div className="space-y-3 mb-6">
-                            <div className="flex justify-between text-gray-600 text-sm">
-                                <span>Cart Subtotal</span>
-                                <span>${subtotal.toFixed(2)}</span>
-                            </div>
+      // ===============================
+      // CASH ON DELIVERY
+      // ===============================
+      if (paymentMethod === "CASH") {
+        const { data } = await placeOrderAPI(payload);
+        console.log("✅ Order Placed:", data);
+        navigate(`/invoice/${data.orderId}`); // Check if backend returns orderId or id
+        return;
+      }
 
-                            {discountFromPoints > 0 && (
-                                <div className="flex justify-between text-green-600 text-sm font-medium">
-                                    <span>Points Discount</span>
-                                    <span>-${discountFromPoints.toFixed(2)}</span>
-                                </div>
-                            )}
+      // ===============================
+      // RAZORPAY
+      // ===============================
+      // Create Razorpay Order with Amount Only
+      const { data: rzpOrder } = await createRazorpayOrderAPI(
+        cartSummary.totalAmount
+      );
+      
+      const orderData = typeof rzpOrder === 'string' ? JSON.parse(rzpOrder) : rzpOrder;
+      console.log("💳 Razorpay Order Created:", orderData);
 
-                            <div className="flex justify-between text-gray-600 text-sm">
-                                <span>Shipping Fee</span>
-                                <span>${shippingFee.toFixed(2)}</span>
-                            </div>
+      const options = {
+        key: "rzp_test_S8S02r0SbbS25V", 
+        amount: orderData.amount, 
+        currency: "INR",
+        name: "e-MART",
+        description: "Order Payment",
+        order_id: orderData.id,
 
-                            <div className="pt-4 border-t border-gray-100 flex justify-between font-bold text-xl text-gray-900">
-                                <span>Total to Pay</span>
-                                <span>${finalTotal.toFixed(2)}</span>
-                            </div>
-                        </div>
+        handler: async function (response) {
+          console.log("✅ Payment Success:", response);
+          try {
+             // ✅ Payment success → place order
+             const { data } = await placeOrderAPI(payload);
+             console.log("✅ Order Saved:", data);
+             navigate(`/invoice/${data.orderId}`);
+          } catch(e) {
+             console.error("❌ Order Creation Failed:", e);
+             // Check for specific error codes from backend
+             const errorCode = e.response?.data?.code;
+             const errorMsg = e.response?.data?.message || e.message;
+             
+             if (errorCode === 'CART_EMPTY') {
+                // If cart is empty, it might mean the order was ALREADY placed by a duplicate call.
+                // We should check if an order was recently created? 
+                // For now, let's assume success if we suspect a race condition, OR just show the alert.
+                alert("Your cart was empty. If you already paid, please check your Orders history.");
+                navigate('/profile'); // Redirect to profile/orders to check
+             } else {
+                alert("Payment successful but Order Creation failed: " + errorMsg + "\nPlease contact support.");
+             }
+          } finally {
+             // Don't reset processingRef here, we are navigating away
+          }
+        },
 
-                        <div className="bg-blue-50 p-4 rounded-xl mb-6">
-                            <div className="text-xs text-blue-600 font-medium uppercase tracking-wider mb-1">Rewards</div>
-                            <div className="text-sm text-blue-800">
-                                You will earn <span className="font-bold">{pointsEarned.toFixed(0)} e-Points</span> on this order!
-                            </div>
-                        </div>
+        prefill: {
+          name: user.fullName,
+          email: user.email,
+          contact: user.mobile || "",
+        },
 
-                        <Button
-                            className="w-full py-4 text-lg shadow-lg shadow-blue-100"
-                            onClick={handlePlaceOrder}
-                            disabled={!deliveryType || (deliveryType === 'courier' && !address) || (deliveryType === 'pickup' && !selectedStore)}
-                        >
-                            Complete Order & Pay
-                        </Button>
+        theme: { color: "#2563eb" },
+        modal: {
+            ondismiss: function() {
+                processingRef.current = false;
+            }
+        }
+      };
 
-                        <p className="text-[10px] text-gray-400 text-center mt-4">
-                            By placing your order, you agree to our Terms of Use and Privacy Policy.
-                        </p>
-                    </div>
-                </div>
-            </div>
+      const razorpay = new window.Razorpay(options);
+      razorpay.on("payment.failed", function (response) {
+        alert("Payment Failed: " + response.error.description);
+        processingRef.current = false;
+      });
+      razorpay.open();
+    } catch (err) {
+      console.error("❌ Place Order Error:", err);
+      processingRef.current = false;
+      // Show more detailed error if available
+      const errorCode = err.response?.data?.code;
+      const errorMsg = err.response?.data?.message || err.message;
+      
+      if (errorCode === 'CART_EMPTY') {
+        alert("Your cart is empty. Please add items before checkout.");
+        navigate('/cart');
+      } else {
+        alert("Failed to place order: " + errorMsg);
+      }
+    }
+  };
+
+  // ===============================
+  // GUARDS
+  // ===============================
+  if (!cartItems.length) {
+    return <div className="p-10 text-center">Your cart is empty</div>;
+  }
+
+  // ===============================
+  // UI
+  // ===============================
+  return (
+    <div className="max-w-5xl mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* LEFT */}
+      <div className="md:col-span-2 space-y-6">
+        {/* STEP 1 */}
+        <div className="border p-4 rounded">
+          <h2 className="font-bold mb-4">1️⃣ Delivery Method</h2>
+          <div className="flex gap-4">
+            <Button
+              onClick={() => {
+                setDeliveryType("HOME_DELIVERY");
+                setStep(2);
+              }}
+            >
+              Home Delivery
+            </Button>
+            <Button
+              onClick={() => {
+                setDeliveryType("STORE");
+                setStep(2);
+              }}
+            >
+              Store Pickup
+            </Button>
+          </div>
         </div>
-    );
+
+        {/* STEP 2 */}
+        {step >= 2 && (
+          <div className="border p-4 rounded">
+            <h2 className="font-bold mb-4">
+              2️⃣ {deliveryType === "HOME_DELIVERY" ? "Select Address" : "Select Store"}
+            </h2>
+
+            {deliveryType === "HOME_DELIVERY" && (
+              <>
+                {Array.isArray(addresses) && addresses.length > 0 ? (
+                  addresses.map((a) => (
+                    <div
+                      key={a.addressId}
+                      onClick={() => setSelectedAddress(a)}
+                      className={`p-3 border rounded cursor-pointer mb-2 ${
+                        selectedAddress?.addressId === a.addressId
+                          ? "border-blue-600 bg-blue-50"
+                          : ""
+                      }`}
+                    >
+                      <p className="font-semibold">{a.houseNumber}, {a.landmark}</p>
+                      <p className="text-sm text-gray-600">{a.city}, {a.state} - {a.pincode}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm mb-4">No addresses found. Please add one.</p>
+                )}
+
+                {!showAddAddress ? (
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-2 mb-4 border-dashed"
+                    onClick={() => setShowAddAddress(true)}
+                  >
+                    + Add New Address
+                  </Button>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg my-4 border">
+                    <h3 className="font-semibold mb-3">New Address</h3>
+                    <form onSubmit={handleAddAddress} className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="House Number / Flat"
+                        className="w-full p-2 border rounded"
+                        value={newAddress.houseNumber}
+                        onChange={(e) => setNewAddress({ ...newAddress, houseNumber: e.target.value })}
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Landmark"
+                        className="w-full p-2 border rounded"
+                        value={newAddress.landmark}
+                        onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="City"
+                          className="w-full p-2 border rounded"
+                          value={newAddress.city}
+                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                          required
+                        />
+                        <input
+                          type="text"
+                          placeholder="State"
+                          className="w-full p-2 border rounded"
+                          value={newAddress.state}
+                          onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Pincode"
+                        className="w-full p-2 border rounded"
+                        value={newAddress.pincode}
+                        onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
+                        required
+                      />
+                      <div className="flex gap-2 justify-end mt-2">
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          onClick={() => setShowAddAddress(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit">
+                          Save Address
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </>
+            )}
+
+            {deliveryType === "STORE" &&
+              Array.isArray(stores) && stores.map((s) => (
+                <div
+                  key={s.storeId}
+                  onClick={() => setSelectedStore(s)}
+                  className={`p-3 border rounded cursor-pointer mb-2 ${
+                    selectedStore?.storeId === s.storeId
+                      ? "border-blue-600 bg-blue-50"
+                      : ""
+                  }`}
+                >
+                  {s.storeName} - {s.city}
+                </div>
+              ))}
+
+            <Button className="mt-4" onClick={() => setStep(3)}>
+              Continue
+            </Button>
+          </div>
+        )}
+
+        {/* STEP 3 */}
+        {step >= 3 && (
+          <div className="border p-4 rounded">
+            <h2 className="font-bold mb-4">3️⃣ Payment</h2>
+
+            <label className="block mb-2">
+              <input
+                type="radio"
+                checked={paymentMethod === "CASH"}
+                onChange={() => setPaymentMethod("CASH")}
+              />{" "}
+              Cash on Delivery
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                checked={paymentMethod === "RAZORPAY"}
+                onChange={() => setPaymentMethod("RAZORPAY")}
+              />{" "}
+              Razorpay
+            </label>
+
+            <Button className="mt-6 w-full" onClick={handlePlaceOrder}>
+              {paymentMethod === "CASH" ? "Place Order" : "Pay Now"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* RIGHT */}
+      <div className="border p-6 rounded h-fit">
+        <h3 className="font-bold mb-4">Order Summary</h3>
+        <p>Total MRP: ₹{cartSummary.totalMrp}</p>
+        <p>Discount: -₹{cartSummary.epointDiscount}</p>
+        <p className="font-bold text-lg mt-2">
+          Payable: ₹{cartSummary.totalAmount}
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default Checkout;
