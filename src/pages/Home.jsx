@@ -66,7 +66,7 @@ const Home = () => {
                     <p className="text-xl text-gray-200 mb-8 max-w-lg">
                         Exclusive deals for e-MART members. Join today and start saving with our unique point redemption system.
                     </p>
-                    <Link to="/register">
+                    <Link to="/emart-card">
                         <Button variant="primary" size="lg" className="rounded-full px-8 bg-blue-600 hover:bg-blue-500 border-none">
                             Get Your e-MART Card
                         </Button>
