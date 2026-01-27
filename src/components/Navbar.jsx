@@ -7,15 +7,40 @@ import { useCart } from '../context/CartContext';
 import { CATEGORIES } from '../data/mockData';
 import Button from './Button';
 
+import { getAllCategories } from '../services/categoryService';
+
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openProfile, setOpenProfile] = useState(false);
+  const [categories, setCategories] = useState([]); // Real categories
 
   const profileRef = useRef(null);
+  
+  // Fetch Categories on Mount
+  useEffect(() => {
+    const fetchCats = async () => {
+        try {
+            const res = await getAllCategories();
+            setCategories(res.data);
+        } catch (err) {
+            console.error("Failed to fetch categories logic", err);
+        }
+    };
+    fetchCats();
+  }, []);
 
   const { user, logout } = useAuth();
   const { cartItems } = useCart();
   const navigate = useNavigate();
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      navigate(`/catalog?search=${searchQuery}`);
+      setSearchQuery(''); 
+    }
+  };
 
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -95,13 +120,13 @@ const Navbar = () => {
                 Categories
               </button>
               <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block border">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <Link
-                    key={cat.id}
-                    to={`/catalog?category=${cat.id}`}
+                    key={cat.categoryId}
+                    to={`/catalog?category=${cat.categoryId}`}
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
-                    {cat.name}
+                    {cat.categoryName}
                   </Link>
                 ))}
               </div>
@@ -111,6 +136,9 @@ const Navbar = () => {
             <input
               type="text"
               placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
               className="w-64 px-4 py-1.5 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
@@ -236,14 +264,14 @@ const Navbar = () => {
           <div className="md:hidden bg-white border-t">
             <div className="px-4 py-3 space-y-2">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="block">Home</Link>
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <Link
-                  key={cat.id}
-                  to={`/catalog?category=${cat.id}`}
+                  key={cat.categoryId}
+                  to={`/catalog?category=${cat.categoryId}`}
                   onClick={() => setIsMenuOpen(false)}
                   className="block"
                 >
-                  {cat.name}
+                  {cat.categoryName}
                 </Link>
               ))}
             </div>
