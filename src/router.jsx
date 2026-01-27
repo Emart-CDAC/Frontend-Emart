@@ -12,7 +12,9 @@ import ExcelUpload from './pages/Admin/ExcelUpload';
 import Dashboard from './pages/Admin/Dashboard';
 import Orders from './pages/Orders';
 import EmartCard from './pages/EmartCard';
-import OrderSuccess from './pages/OrderSuccess'; // ✅ ADD THIS
+import OrderSuccess from './pages/OrderSuccess';// ✅ ADD THIS
+
+
 
 export const router = createBrowserRouter([
   {
@@ -29,13 +31,16 @@ export const router = createBrowserRouter([
       { path: 'checkout', element: <Checkout /> },
 
       // ✅ ADD THIS LINE
-      { path: 'order-success', element: <OrderSuccess /> },
+      { path: 'order-success',  element: <OrderSuccess />
+},
 
       { path: 'orders', element: <Orders /> },
       { path: 'invoice/:id', element: <Invoice /> },
       { path: 'emart-card', element: <EmartCard /> },
       { path: 'admin/dashboard', element: <Dashboard /> },
       { path: 'admin/upload', element: <ExcelUpload /> },
+      
+
     ],
   },
 ]);

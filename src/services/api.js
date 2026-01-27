@@ -49,5 +49,51 @@ export const getCartSummaryAPI = (userId) => {
 export const applyEpointsAPI = (userId, epointsToRedeem) => {
     return api.post(`/cart/apply-epoints`, { userId, epointsToRedeem });
 };
+// ==========================
+// ORDER APIs
+// ==========================
+
+// ==========================
+// ORDER APIs
+// ==========================
+
+
+
+// ==========================
+// STORE & ADDRESS APIs
+// ==========================
+
+export const getStoresAPI = () => {
+    return api.get('/stores');
+};
+
+export const getAddressesAPI = (userId) => {
+    return api.get(`/address/user/${userId}`);
+};
+
+export const addAddressAPI = (userId, addressData) => {
+    return api.post(`/address/add/${userId}`, addressData);
+};
+
+// ORDER
+export const placeOrderAPI = (payload) => {
+  return api.post('/order/place', payload);
+};
+
+export const getOrderByIdAPI = (orderId) => {
+  return api.get(`/order/${orderId}`);
+};
+
+export const getOrdersByUserAPI = (userId) => {
+  return api.get(`/order/user/${userId}`);
+};
+
+// RAZORPAY
+export const createRazorpayOrderAPI = (amount) => {
+  return api.post(`/payment/create-order?amount=${amount}`);
+};
+
+
+
 
 export default api;
