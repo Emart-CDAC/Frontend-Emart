@@ -9,3 +9,7 @@ export const getAllCategories = () => {
 export const getSubCategoriesByCategoryId = (categoryId) => {
     return axios.get(`${API_BASE_URL}/${categoryId}/subcategories`);
 };
+
+export const getChildCategories = (parentId) => {
+    return axios.get(`${API_BASE_URL}/${parentId}/children`);
+};
