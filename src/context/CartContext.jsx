@@ -87,7 +87,8 @@ export const CartProvider = ({ children }) => {
             cartSummary,
             addToCart,
             removeFromCart,
-            updateQuantity
+            updateQuantity,
+            refreshCart: fetchCart // Expose for external updates (e.g. after checkout)
         }}>
             {children}
         </CartContext.Provider>

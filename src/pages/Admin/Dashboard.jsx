@@ -16,7 +16,7 @@ const Dashboard = () => {
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
-        if (!user || user.role !== 'ROLE_ADMIN') {
+        if (!user || (user.role !== 'ROLE_ADMIN' && user.role !== 'ADMIN' && user.type !== 'ADMIN')) {
             navigate('/');
             return;
         }
@@ -76,9 +76,13 @@ const Dashboard = () => {
             setUploadFile(null);
 
         } catch (error) {
-            setUploadResult(
-                error.response?.data || 'Upload failed'
-            );
+            console.error('Upload error:', error);
+            const errMsg = error.response?.data?.message || 
+                           (typeof error.response?.data === 'string' ? error.response.data : null) ||
+                           error.message ||
+                           'Upload failed';
+            
+            setUploadResult(errMsg);
         } finally {
             setUploading(false);
         }

@@ -12,7 +12,7 @@ import {
 } from "../services/api";
 
 const Checkout = () => {
-  const { cartItems, cartSummary } = useCart();
+  const { cartItems, cartSummary, refreshCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -147,6 +147,7 @@ const Checkout = () => {
       if (paymentMethod === "CASH") {
         const { data } = await placeOrderAPI(payload);
         console.log("✅ Order Placed:", data);
+        await refreshCart(); // Clear Frontend Cart
         navigate(`/invoice/${data.orderId}`); // Check if backend returns orderId or id
         return;
       }
@@ -176,6 +177,8 @@ const Checkout = () => {
              // ✅ Payment success → place order
              const { data } = await placeOrderAPI(payload);
              console.log("✅ Order Saved:", data);
+             // Clear local cart state
+             await refreshCart();
              navigate(`/invoice/${data.orderId}`);
           } catch(e) {
              console.error("❌ Order Creation Failed:", e);

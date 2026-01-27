@@ -36,10 +36,30 @@ export const AuthProvider = ({ children }) => {
 
     const refreshUser = useCallback(async (userId, email = null, role = null) => {
         try {
-            // Use configured `api` which adds the Authorization header automatically
-            const response = await api.get(`/users/${userId}`);
-            console.log("🔄 refreshUser response:", response.data); // DEBUG
-            const normalized = normalizeUser(response.data);
+            // Determine endpoint based on role
+            let endpoint = `/users/${userId}`;
+            if (role === 'ROLE_ADMIN' || role === 'ADMIN') {
+                endpoint = `/admin/${userId}`;
+            }
+
+            console.log(`🔄 refreshUser fetching from: ${endpoint} with role: ${role}`); // DEBUG
+
+            const response = await api.get(endpoint);
+            const data = response.data;
+            
+            // Normalize differently based on role/response structure
+            let normalized;
+            if (role === 'ROLE_ADMIN' || role === 'ADMIN') {
+                normalized = {
+                    id: data.adminId, // Admin table uses adminId
+                    email: data.email,
+                    fullName: data.username, // Admin often uses username as display name
+                    role: 'ADMIN',
+                    type: 'ADMIN'
+                };
+            } else {
+                 normalized = normalizeUser(data);
+            }
 
             if (!normalized.id) {
                 console.error("❌ Normalized user missing ID:", normalized, "From data:", response.data);
@@ -50,12 +70,13 @@ export const AuthProvider = ({ children }) => {
             setUser(normalized);
         } catch (err) {
             console.error("refreshUser failed:", err);
-            // Fallback: if backend fails, use token data so the user isn't logged out visually
+            // Fallback
             if (userId) {
                 setUser({
                     id: userId,
                     email,
-                    role: role || "ROLE_USER"
+                    role: role || "ROLE_USER",
+                    type: (role === 'ROLE_ADMIN' || role === 'ADMIN') ? 'ADMIN' : 'USER'
                 });
             }
         }

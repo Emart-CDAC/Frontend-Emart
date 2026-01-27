@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
 import ProductCard from '../components/ProductCard';
 import Input from '../components/Input';
-import { getAllProducts } from '../services/productService';
+import { getAllProducts, searchProducts } from '../services/productService';
 import { getAllCategories, getSubCategoriesByCategoryId } from '../services/categoryService';
 
 const Catalog = () => {
@@ -27,20 +27,26 @@ const Catalog = () => {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                // Fetch Products
-                const productRes = await getAllProducts();
-                setProducts(productRes.data);
+                const searchQuery = searchParams.get('search');
+
+                if (searchQuery) {
+                    // Search Mode
+                    console.log("Searching for:", searchQuery);
+                    const searchRes = await searchProducts(searchQuery);
+                    setProducts(searchRes.data);
+                    setSearchTerm(searchQuery); // Set local filter input too
+                } else {
+                    // Normal Catalog Mode
+                    const productRes = await getAllProducts();
+                    setProducts(productRes.data);
+                }
 
                 // Fetch Categories
                 const categoryRes = await getAllCategories();
-                // Map backend category fields to frontend expected shape if needed, 
-                // or just use backend fields (categoryId, categoryName).
-                // Frontend Sidebar expects: { id, name, subcategories: [] }
-                // Backend: { categoryId, categoryName }
                 const mappedCategories = categoryRes.data.map(c => ({
                     id: c.categoryId,
                     name: c.categoryName,
-                    subcategories: [] // Initial empty, will fetch on demand or effect
+                    subcategories: []
                 }));
                 setCategories(mappedCategories);
             } catch (err) {
@@ -48,7 +54,7 @@ const Catalog = () => {
             }
         };
         fetchInitialData();
-    }, []);
+    }, [searchParams]); // Re-run when URL params change (e.g. searching again)
 
     // Load initial category from URL
     useEffect(() => {
