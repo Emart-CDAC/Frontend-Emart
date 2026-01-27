@@ -1,25 +1,35 @@
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Minus } from 'lucide-react';
+import { Trash2, Plus, Minus, Tag, ShieldCheck, ShoppingCart, Crown } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
+import CheckoutSteps from '../components/CheckoutSteps';
 import { getProductImageUrl } from '../services/productService';
 import { useEffect } from 'react';
 
 const Cart = () => {
     const { cartItems, cartSummary, removeFromCart, updateQuantity, calculateTotal } = useCart();
     const { user, isAuthenticated } = useAuth();
-
+    
+    // Import CheckoutSteps dynamically if not already imported at top, but better to add import
+    // checking imports... we need to add import CheckoutSteps from '../components/CheckoutSteps';
+    // Since I can't see the imports in this block, I will replace the whole file content to be safe and clean.
+    
     useEffect(() => {
         console.log("Cart summary updated:", cartSummary);
     }, [cartSummary]);
 
     if (cartItems.length === 0) {
         return (
-            <div className="text-center py-20">
-                <h2 className="text-2xl font-bold mb-4">Your Cart is Empty</h2>
+            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-4">
+                <div className="bg-blue-50 p-6 rounded-full mb-6 relative">
+                    <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20"></div>
+                    <ShoppingCart className="w-16 h-16 text-blue-600" />
+                </div>
+                <h2 className="text-3xl font-bold mb-2 text-gray-800">Your Cart is Empty</h2>
+                <p className="text-gray-500 mb-8 max-w-md">Looks like you haven't added anything to your cart yet. Explore our products and find something you love!</p>
                 <Link to="/">
-                    <Button>Start Shopping</Button>
+                    <Button size="lg" className="px-8 shadow-lg shadow-blue-200">Start Shopping</Button>
                 </Link>
             </div>
         );
@@ -35,97 +45,131 @@ const Cart = () => {
     const displayEarnedPoints = isGuest ? 0 : cartSummary.earnedEpoints;
 
     return (
-        <div className="max-w-6xl mx-auto p-4">
-            <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+            <CheckoutSteps currentStep={1} />
 
-            <div className="flex flex-col lg:flex-row gap-12">
-                {/* CART ITEMS */}
-                <div className="flex-1 space-y-6">
+            <h1 className="text-3xl font-bold mb-8 text-gray-800">Shopping Cart <span className="text-gray-400 font-normal text-xl ml-2">({cartItems.length} items)</span></h1>
+
+            <div className="flex flex-col lg:flex-row gap-8 xl:gap-12">
+                {/* CART ITEMS LIST */}
+                <div className="flex-1 space-y-4">
                     {cartItems.map(item => {
                         const price = item.price || 0;
+                        const productName = item.name || item.productName || "Product Name Unavailable"; 
+                        // Sometimes backend might send 'qty' or 'quantity'
+                        const quantity = item.quantity || item.qty || 1;
 
                         return (
-                            <div key={item.cartItemId} className="flex items-center gap-6 bg-white p-4 rounded-xl shadow border">
-                                <div className="w-24 h-24 bg-gray-100 rounded overflow-hidden">
+                            <div key={item.cartItemId} className="group flex flex-col sm:flex-row items-center gap-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                                
+                                <div className="w-full sm:w-32 h-32 bg-gray-50 rounded-xl overflow-hidden shadow-inner shrink-0 relative">
                                     <img
                                         src={getProductImageUrl(item.imageUrl)}
-                                        alt={item.name}
-                                        className="w-full h-full object-cover"
+                                        alt={productName}
+                                        className="w-full h-full object-contain p-2 mix-blend-multiply group-hover:scale-110 transition-transform duration-500"
                                     />
                                 </div>
 
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-lg">{item.name}</h3>
-                                    <div className="font-bold">₹{price}</div>
+                                <div className="flex-1 w-full text-center sm:text-left">
+                                    <h3 className="font-bold text-lg text-gray-900 mb-1 leading-tight">{productName}</h3>
+                                    <div className="text-2xl font-bold text-gray-900 mb-2">₹{price.toLocaleString()}</div>
 
                                     {item.purchaseType !== 'NORMAL' && (
-                                        <div className="text-sm text-blue-600 mt-1">
+                                        <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 mb-3">
                                             {item.purchaseType === 'FULL_EP'
                                                 ? `Full e-Points (${item.epointsUsed})`
                                                 : `Partial e-Points (${item.epointsUsed})`}
                                         </div>
                                     )}
+                                    
+                                    <div className="flex items-center justify-center sm:justify-start gap-4">
+                                         <div className="flex items-center border border-gray-200 rounded-lg bg-gray-50">
+                                            <button
+                                                disabled={quantity <= 1}
+                                                onClick={() => updateQuantity(item.cartItemId, quantity - 1)}
+                                                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-white hover:text-blue-600 rounded-l-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                                            >
+                                                <Minus className="w-4 h-4" />
+                                            </button>
+                                            <span className="w-10 text-center font-semibold text-gray-700">{quantity}</span>
+                                            <button
+                                                onClick={() => updateQuantity(item.cartItemId, quantity + 1)}
+                                                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-white hover:text-blue-600 rounded-r-lg transition-colors"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <button 
+                                            onClick={() => removeFromCart(item.cartItemId)}
+                                            className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"
+                                            title="Remove item"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
-
-                                <div className="flex items-center gap-3">
-                                    <button
-    disabled={item.quantity <= 1}
-    onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
->
-    -
-</button>
-
-<button
-    onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
->
-    +
-</button>
-
-                                </div>
-
-                                <button onClick={() => removeFromCart(item.cartItemId)}>
-                                    <Trash2 className="text-red-500" />
-                                </button>
                             </div>
                         );
                     })}
                 </div>
 
-                {/* SUMMARY */}
-                <div className="w-full lg:w-96 bg-white p-6 rounded-xl shadow">
-                    <h2 className="text-xl font-bold mb-4">Price Details</h2>
+                {/* SUMMARY SIDEBAR */}
+                <div className="w-full lg:w-[400px] shrink-0">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
+                        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                            Order Summary
+                        </h2>
 
-                    <div className="space-y-2">
-                        <div className="flex justify-between">
-                            <span>Total MRP</span>
-                            <span>₹{displayMrp}</span>
+                        <div className="space-y-4 text-gray-600">
+                            <div className="flex justify-between">
+                                <span>Subtotal</span>
+                                <span className="font-medium text-gray-900">₹{displayMrp}</span>
+                            </div>
+
+                            {displayEpointDisc > 0 && (
+                                <div className="flex justify-between text-green-600 bg-green-50 p-2 rounded-lg">
+                                    <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 fill-current" /> Discount</span>
+                                    <span className="font-bold">- ₹{displayEpointDisc}</span>
+                                </div>
+                            )}
+
+                             <div className="flex justify-between">
+                                <span>Platform Fee</span>
+                                <span className="font-medium text-gray-900">₹{displayPlatformFee}</span>
+                            </div>
+
+                            <div className="h-px bg-gray-200 my-4"></div>
+
+                            <div className="flex justify-between items-baseline mb-2">
+                                <span className="text-lg font-bold text-gray-800">Total</span>
+                                <span className="text-2xl font-bold text-blue-600">₹{displayFinalAmount}</span>
+                            </div>
+                             <p className="text-xs text-gray-400 text-right mb-6">Inclusive of all taxes</p>
                         </div>
 
-                        <div className="flex justify-between text-green-600">
-                            <span>E-Points Discount</span>
-                            <span>- ₹{displayEpointDisc}</span>
-                        </div>
+                        {!isGuest && displayEarnedPoints > 0 && (
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3 mb-6">
+                                <div className="bg-white p-1.5 rounded-full shadow-sm">
+                                    <Crown className="w-4 h-4 text-amber-500" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-blue-900 font-medium">You will earn</p>
+                                    <p className="text-lg font-bold text-blue-700">{displayEarnedPoints} E-Points</p>
+                                </div>
+                            </div>
+                        )}
 
-                        <div className="flex justify-between">
-                            <span>Platform Fee</span>
-                            <span>₹{displayPlatformFee}</span>
-                        </div>
-
-                        <div className="flex justify-between font-bold text-lg pt-3 border-t">
-                            <span>Total</span>
-                            <span>₹{displayFinalAmount}</span>
+                        <Link to="/checkout" className="block">
+                            <Button className="w-full py-4 text-lg shadow-xl shadow-blue-100 hover:shadow-blue-200 transition-all">
+                                Proceed to Checkout
+                            </Button>
+                        </Link>
+                        
+                        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-400">
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Secure Checkout</span>
                         </div>
                     </div>
-
-                    {!isGuest && (
-                        <div className="bg-blue-50 mt-4 p-3 rounded text-sm text-blue-700">
-                            You will earn <b>{displayEarnedPoints}</b> e-points
-                        </div>
-                    )}
-
-                    <Link to="/checkout">
-                        <Button className="w-full mt-6">Place Order</Button>
-                    </Link>
                 </div>
             </div>
         </div>
