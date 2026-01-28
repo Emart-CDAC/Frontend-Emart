@@ -1,16 +1,20 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+// import axios from 'axios'; // REMOVED: Use configured api instance
+import api from '../services/api';
 
 const AuthContext = createContext();
 
-const API_URL = "http://localhost:8080/api/users";
-
-// Helper to decode JWT
+// Decode JWT safely (Robust implementation handling Base64Url)
 const decodeToken = (token) => {
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
     } catch (e) {
+        console.error("Failed to decode token", e);
         return null;
     }
 };
@@ -19,25 +23,60 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const refreshUser = useCallback(async (userId, initialEmail = null, initialRole = null) => {
+    // 🔹 ALWAYS normalize user object
+    const normalizeUser = (data) => ({
+        id: data.id || data.userId || data.customerId,
+        email: data.email,
+        fullName: data.fullName,
+        ePoints: data.epoints ?? data.ePoints ?? 0,
+        emartCard: data.emartCard,
+        role: data.role || "ROLE_USER",
+        type: data.emartCard ? 'CARDHOLDER' : 'USER'
+    });
+
+    const refreshUser = useCallback(async (userId, email = null, role = null) => {
         try {
-            const response = await axios.get(`${API_URL}/${userId}`);
+            // Determine endpoint based on role
+            let endpoint = `/users/${userId}`;
+            if (role === 'ROLE_ADMIN' || role === 'ADMIN') {
+                endpoint = `/admin/${userId}`;
+            }
+
+            console.log(`🔄 refreshUser fetching from: ${endpoint} with role: ${role}`); // DEBUG
+
+            const response = await api.get(endpoint);
             const data = response.data;
-            setUser({
-                id: data.userId,
-                email: data.email,
-                fullName: data.fullName,
-                ePoints: data.epoints,
-                role: data.role || initialRole || "ROLE_USER",
-                type: data.emartCard ? 'CARDHOLDER' : 'USER'
-            });
-        } catch (error) {
-            console.error("Error refreshing user profile:", error);
+            
+            // Normalize differently based on role/response structure
+            let normalized;
+            if (role === 'ROLE_ADMIN' || role === 'ADMIN') {
+                normalized = {
+                    id: data.adminId, // Admin table uses adminId
+                    email: data.email,
+                    fullName: data.username, // Admin often uses username as display name
+                    role: 'ADMIN',
+                    type: 'ADMIN'
+                };
+            } else {
+                 normalized = normalizeUser(data);
+            }
+
+            if (!normalized.id) {
+                console.error("❌ Normalized user missing ID:", normalized, "From data:", response.data);
+                throw new Error("User ID missing after refresh");
+            }
+
+            console.log("✅ User refreshed successfully:", normalized);
+            setUser(normalized);
+        } catch (err) {
+            console.error("refreshUser failed:", err);
+            // Fallback
             if (userId) {
-                setUser(prev => prev || {
+                setUser({
                     id: userId,
-                    email: initialEmail,
-                    role: initialRole || "ROLE_USER"
+                    email,
+                    role: role || "ROLE_USER",
+                    type: (role === 'ROLE_ADMIN' || role === 'ADMIN') ? 'ADMIN' : 'USER'
                 });
             }
         }
@@ -45,88 +84,64 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const initAuth = async () => {
-            // 1. Check for token in URL (from Google SSO redirect)
-            const params = new URLSearchParams(window.location.search);
-            const token = params.get('token');
+            const token = localStorage.getItem('emart_token');
 
             if (token) {
-                localStorage.setItem('emart_token', token);
-                const url = new URL(window.location);
-                url.searchParams.delete('token');
-                window.history.replaceState({}, document.title, url.pathname);
-            }
-
-            // 2. Load user and refresh details
-            const storedToken = localStorage.getItem('emart_token');
-            if (storedToken) {
-                const decoded = decodeToken(storedToken);
-                if (decoded) {
+                const decoded = decodeToken(token);
+                if (decoded?.userId) {
+                    // Pass sub (email) and role as fallbacks
                     await refreshUser(decoded.userId, decoded.sub, decoded.role);
+                } else {
+                    console.warn("Token present but invalid or missing userId");
+                    // Optionally clear invalid token?
+                    // localStorage.removeItem('emart_token'); 
                 }
             }
             setLoading(false);
         };
+
         initAuth();
     }, [refreshUser]);
 
     const login = async (email, password, isAdmin = false) => {
+        const url = isAdmin
+            ? "/admin/login" 
+            : "/users/login";
+
         try {
-            const url = isAdmin
-                ? "http://localhost:8080/api/admin/login"
-                : `${API_URL}/login`;
-
-            const response = await axios.post(url, { email, password });
+            const response = await api.post(url, { email, password });
             const { token } = response.data;
-            localStorage.setItem('emart_token', token);
-            const decoded = decodeToken(token);
+            
+            if (!token) throw new Error("No token received");
 
-            // Immediately fetch full profile to get ePoints etc.
-            if (decoded?.userId && !isAdmin) {
-                await refreshUser(decoded.userId, decoded.sub, decoded.role);
-            } else {
-                setUser({
-                    id: decoded?.userId,
-                    email: decoded?.sub || email,
-                    role: decoded?.role || (isAdmin ? "ROLE_ADMIN" : "ROLE_USER")
-                });
+            localStorage.setItem('emart_token', token);
+
+            const decoded = decodeToken(token);
+            if (!decoded?.userId) {
+                throw new Error("Invalid token: userId missing");
             }
+
+            await refreshUser(decoded.userId, decoded.sub, decoded.role);
             return { success: true };
         } catch (error) {
-            return {
-                success: false,
-                message: error.response?.data?.message || "Login failed"
+            console.error("Login failed", error);
+            // Return error structure consistent with UI expectation
+            return { 
+                success: false, 
+                message: error.response?.data?.message || "Login failed" 
             };
         }
     };
 
     const register = async (userData) => {
         try {
-            const params = new URLSearchParams(window.location.search);
-            const userId = params.get('userId');
-
-            if (userId) {
-                const ssoPayload = { ...userData };
-                if (typeof ssoPayload.address === 'string') {
-                    ssoPayload.address = { city: ssoPayload.address };
-                }
-                const response = await axios.put(`${API_URL}/complete-registration/${userId}`, ssoPayload);
-                const { token } = response.data;
-                localStorage.setItem('emart_token', token);
-                const decoded = decodeToken(token);
-                await refreshUser(decoded.userId, userData.email, "ROLE_USER");
-                return { success: true, message: 'Registration completed successfully!' };
-            } else {
-                const normalPayload = { ...userData };
-                if (typeof normalPayload.address === 'string') {
-                    normalPayload.address = { city: normalPayload.address };
-                }
-                await axios.post(`${API_URL}/register`, normalPayload);
-                return { success: true, message: 'Registration successful! Please login.' };
-            }
+            await api.post(`/users/register`, userData);
+            return { success: true, message: "Registration successful! Please login." };
         } catch (error) {
-            return {
-                success: false,
-                message: error.response?.data?.message || "Registration failed"
+            console.error("Registration failed:", error);
+            return { 
+                success: false, 
+                message: error.response?.data?.message || "Registration failed" 
             };
         }
     };
@@ -134,10 +149,28 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         localStorage.removeItem('emart_token');
+        // Optional: Call network logout if needed
     };
 
+    const isAuthenticated = () => !!user?.id;
+    const getToken = () => localStorage.getItem('emart_token');
+
+    // Debugging loop check
+    // console.log("✅ AuthContext user state:", user);
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, register, refreshUser, loading }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                login,
+                register,
+                logout,
+                refreshUser,
+                loading,
+                isAuthenticated,
+                getToken
+            }}
+        >
             {!loading && children}
         </AuthContext.Provider>
     );

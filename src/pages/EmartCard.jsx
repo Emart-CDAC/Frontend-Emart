@@ -3,7 +3,7 @@ import { getEmartCardDetails, applyForEmartCard } from '../services/emartCardSer
 import { getUserProfile } from '../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { CreditCard, CheckCircle, X, ShieldCheck, TrendingUp, Briefcase, GraduationCap, Landmark } from 'lucide-react';
+import { CreditCard, CheckCircle, X, ShieldCheck, TrendingUp, Briefcase, GraduationCap, Landmark, Calendar, Heart } from 'lucide-react';
 import Button from '../components/Button';
 import Input from '../components/Input';
 
@@ -19,12 +19,14 @@ const EmartCard = () => {
         panCard: '',
         bankDetails: '',
         occupation: '',
-        educationQualification: ''
+        educationQualification: '',
+        birthDate: '',
+        interests: ''
     });
 
     const { user, refreshUser } = useAuth();
     const ePoints = userProfile?.epoints ?? 0;
-    const isEligible = ePoints >= 100;
+    // const isEligible = ePoints >= 100; // Requirement changed: No eligibility check needed
 
     const fetchData = async () => {
         if (!user?.id) return;
@@ -163,40 +165,13 @@ const EmartCard = () => {
                         Unlock exclusive discounts, priority delivery, and double rewards.
                     </p>
 
-                    {/* Eligibility Progress */}
-                    <div className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-100 text-left">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-700">Eligibility Requirement</span>
-                            <span className={`text-sm font-bold ${isEligible ? 'text-green-600' : 'text-blue-600'}`}>
-                                {ePoints} / 100 Points
-                            </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                            <div
-                                className={`h-2.5 rounded-full transition-all duration-500 ${isEligible ? 'bg-green-500' : 'bg-blue-600'}`}
-                                style={{ width: `${Math.min((ePoints / 100) * 100, 100)}%` }}
-                            ></div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                            {isEligible ? (
-                                <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                            ) : (
-                                <ShieldCheck className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
-                            )}
-                            <p className="text-xs text-gray-500">
-                                {isEligible
-                                    ? "Congratulations! You are eligible for the e-MART Premium Card."
-                                    : `You need ${100 - ePoints} more points to become eligible. Keep shopping to earn more!`}
-                            </p>
-                        </div>
-                    </div>
+                    {/* Eligibility Check Removed - All users can apply */}
 
                     <Button
-                        disabled={!isEligible}
                         className="w-full py-4 text-lg"
                         onClick={() => setShowModal(true)}
                     >
-                        Apply for Card
+                        Apply for Card & Get 100 Points
                     </Button>
                 </div>
             )}
@@ -288,6 +263,26 @@ const EmartCard = () => {
                                             onChange={handleInputChange}
                                             required
                                             icon={<GraduationCap className="w-4 h-4" />}
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <Input
+                                            label="Birth Date (Optional)"
+                                            type="date"
+                                            name="birthDate"
+                                            value={formData.birthDate}
+                                            onChange={handleInputChange}
+                                            icon={<Calendar className="w-4 h-4" />}
+                                        />
+                                        <Input
+                                            label="Interests (Optional)"
+                                            type="text"
+                                            name="interests"
+                                            placeholder="e.g. Tech, Fashion"
+                                            value={formData.interests}
+                                            onChange={handleInputChange}
+                                            icon={<Heart className="w-4 h-4" />}
                                         />
                                     </div>
 

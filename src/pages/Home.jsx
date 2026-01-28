@@ -38,11 +38,11 @@ const Home = () => {
     const getCategoryImage = (catId) => {
         // Deterministic mock images for demo purposes since backend lacks them
         const images = [
-            'https://images.unsplash.com/photo-1498049381961-a59a96bcb742?w=500&auto=format&fit=crop&q=60',
-            'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=500&auto=format&fit=crop&q=60',
-            'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=500&auto=format&fit=crop&q=60',
-            'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=500&auto=format&fit=crop&q=60',
-            'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&auto=format&fit=crop&q=60'
+            'https://images.unsplash.com/photo-1498049381961-a59a96bcb742?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80'
         ];
         return images[catId % images.length] || images[0];
     };
@@ -66,7 +66,7 @@ const Home = () => {
                     <p className="text-xl text-gray-200 mb-8 max-w-lg">
                         Exclusive deals for e-MART members. Join today and start saving with our unique point redemption system.
                     </p>
-                    <Link to="/register">
+                    <Link to="/emart-card">
                         <Button variant="primary" size="lg" className="rounded-full px-8 bg-blue-600 hover:bg-blue-500 border-none">
                             Get Your e-MART Card
                         </Button>

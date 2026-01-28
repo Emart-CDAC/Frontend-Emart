@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
 import ProductCard from '../components/ProductCard';
 import Input from '../components/Input';
-import { getAllProducts } from '../services/productService';
-import { getAllCategories, getSubCategoriesByCategoryId } from '../services/categoryService';
+import { getAllProducts, searchProducts } from '../services/productService';
+import { getAllCategories, getSubCategoriesByCategoryId, getChildCategories } from '../services/categoryService';
 
 const Catalog = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +15,7 @@ const Catalog = () => {
     // State-Driven Navigation
     const [categories, setCategories] = useState([]);
     const [activeCategory, setActiveCategory] = useState(null);
+    const [activeChildCategory, setActiveChildCategory] = useState(null);
     const [activeSubcategory, setActiveSubcategory] = useState(null);
     const [products, setProducts] = useState([]); // Master list from backend
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -23,42 +24,62 @@ const Catalog = () => {
     const [priceRange, setPriceRange] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Fetch Initial Data
+    // Fetch Initial Data (Only on mount or search change)
     useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                // Fetch Products
-                const productRes = await getAllProducts();
-                setProducts(productRes.data);
-
-                // Fetch Categories
+        const fetchMasterData = async () => {
+             // Always fetch categories on mount
+             try {
                 const categoryRes = await getAllCategories();
-                // Map backend category fields to frontend expected shape if needed, 
-                // or just use backend fields (categoryId, categoryName).
-                // Frontend Sidebar expects: { id, name, subcategories: [] }
-                // Backend: { categoryId, categoryName }
                 const mappedCategories = categoryRes.data.map(c => ({
                     id: c.categoryId,
                     name: c.categoryName,
-                    subcategories: [] // Initial empty, will fetch on demand or effect
+                    subcategories: []
                 }));
-                setCategories(mappedCategories);
-            } catch (err) {
-                console.error("Error fetching data:", err);
-            }
+                // Only set if empty to avoid overwriting existing subcats during re-renders
+                setCategories(prev => prev.length === 0 ? mappedCategories : prev);
+             } catch (err) {
+                 console.error("Error fetching categories:", err);
+             }
         };
-        fetchInitialData();
-    }, []);
 
-    // Load initial category from URL
+        const fetchProductsData = async () => {
+             const searchQuery = searchParams.get('search');
+             try {
+                if (searchQuery) {
+                    console.log("Searching for:", searchQuery);
+                    const searchRes = await searchProducts(searchQuery);
+                    setProducts(searchRes.data);
+                    setSearchTerm(searchQuery);
+                } else {
+                    const productRes = await getAllProducts();
+                    setProducts(productRes.data);
+                }
+             } catch (err) {
+                 console.error("Error fetching products:", err);
+             }
+        };
+
+        fetchMasterData();
+        fetchProductsData();
+
+    }, [searchParams.get('search')]); // Only re-run if SEARCH string changes, not category
+
+    // Sync Active Category with URL
     useEffect(() => {
         if (initialCategoryId && categories.length > 0) {
             const cat = categories.find(c => c.id === initialCategoryId);
             if (cat) {
-                handleCategorySelect(cat);
+                 // Only trigger select if it's different to avoid loops/redundata
+                 if (activeCategory?.id !== cat.id) {
+                     handleSyncCategory(cat);
+                 }
             }
+        } else if (!initialCategoryId && activeCategory) {
+            // URL cleared, so clear state
+            setActiveCategory(null);
+            setActiveSubcategory(null);
         }
-    }, [initialCategoryId, categories]); // Dependencies updated
+    }, [initialCategoryId, categories]);
 
 
     // Update Products when state changes
@@ -66,7 +87,15 @@ const Catalog = () => {
         let results = products;
 
         if (activeCategory) {
-            results = results.filter(p => p.subCategory?.category?.categoryId === activeCategory.id);
+            results = results.filter(p => 
+                p.subCategory?.category?.categoryId === activeCategory.id || 
+                p.subCategory?.category?.parentCategory?.categoryId === activeCategory.id ||
+                p.subCategory?.category?.parentCategory?.categoryId === activeCategory.id
+            );
+        }
+
+        if (activeChildCategory) {
+            results = results.filter(p => p.subCategory?.category?.categoryId === activeChildCategory.id);
         }
 
         if (activeSubcategory) {
@@ -87,53 +116,73 @@ const Catalog = () => {
 
         setFilteredProducts(results);
 
-    }, [products, activeCategory, activeSubcategory, priceRange, searchTerm]);
+    }, [products, activeCategory, activeChildCategory, activeSubcategory, priceRange, searchTerm]);
 
-    const handleCategorySelect = async (category) => {
-        if (activeCategory?.id === category.id) {
-            // Already active, maybe just reset subcat?
-            // setActiveSubcategory(null); 
-        } else {
-            setActiveCategory(category);
-            setActiveSubcategory(null); // Reset subcat
+    // Internal logic to load subcategories and set state (Called by Effect)
+    const handleSyncCategory = async (category) => {
+        setActiveCategory(category);
+        setActiveChildCategory(null);
+        setActiveSubcategory(null); 
 
-            // Fetch Subcategories if not present
-            if (!category.subcategories || category.subcategories.length === 0) {
-                try {
-                    const res = await getSubCategoriesByCategoryId(category.id);
-                    // Map backend subcategory: { subCategoryId, brand, category, ... } 
-                    // to frontend: { id: subCategoryId, name: brand? Wait. SubCategory name? }
-                    // Viewing SubCategory.java: only "brand" and "sponsors". 
-                    // Wait, where is the subcategory Name?
-                    // Ah, SubCategory table might be relying on "Brand" as the name? Or maybe I missed a field.
-                    // Let's assume Brand is the name for now, or check if there is a 'name' field I missed.
-                    // Re-checking SubCategory.java: private String brand; private boolean sponsors;
-                    // No 'name'. So 'Brand' essentially acts as the subcategory discriminator here?
-                    // Or maybe 'SubCategory' implies specific types like 'Smartphones' -> Brand: Apple?
-                    // The mock data had "Smartphones", "Laptops". 
-                    // This data model seems to map Category -> SubCategory (which has Brand).
-                    // This implies the navigation is Category -> Brand.
-                    // Let's use 'brand' as the name for the sidebar list.
+        // 1. Fetch Children Categories (Level 2)
+        if (!category.children) {
+            try {
+                const res = await getChildCategories(category.id);
+                const children = res.data.map(c => ({
+                    id: c.categoryId,
+                    name: c.categoryName,
+                    subcategories: [] // These will hold Brands later
+                }));
 
-                    const subcats = res.data.map(sc => ({
-                        id: sc.subCategoryId,
-                        name: sc.brand || `SubCategory ${sc.subCategoryId}`,
-                        ...sc
-                    }));
-
-                    // Update categories state with new subcats to persist them
-                    setCategories(prev => prev.map(c =>
-                        c.id === category.id ? { ...c, subcategories: subcats } : c
-                    ));
-
-                    // Also update the active category reference to include these new subcats immediately for UI
-                    setActiveCategory({ ...category, subcategories: subcats });
-
-                } catch (err) {
-                    console.error("Error fetching subcategories:", err);
-                }
+                setCategories(prev => prev.map(c =>
+                    c.id === category.id ? { ...c, children: children } : c
+                ));
+                setActiveCategory({ ...category, children: children });
+            } catch (err) {
+                console.error("Error fetching child categories:", err);
             }
         }
+    };
+
+    const handleChildCategorySelect = async (child) => {
+        setActiveChildCategory(child);
+        setActiveSubcategory(null);
+
+        // 2. Fetch Brands (Level 3) for this Child
+        if (!child.subcategories || child.subcategories.length === 0) {
+            try {
+                const res = await getSubCategoriesByCategoryId(child.id);
+                const brands = res.data.map(sc => ({
+                    id: sc.subCategoryId,
+                    name: sc.brand || `Brand ${sc.subCategoryId}`,
+                    ...sc
+                }));
+                
+                // Let's update the specific child in the activeCategory.children array
+                const updatedChildren = activeCategory.children.map(c => 
+                    c.id === child.id ? { ...c, subcategories: brands } : c
+                );
+                
+                const updatedCategory = { ...activeCategory, children: updatedChildren };
+                
+                setActiveCategory(updatedCategory);
+                
+                setCategories(prev => prev.map(c => 
+                    c.id === activeCategory.id ? updatedCategory : c
+                ));
+
+            } catch (err) {
+                console.error("Error fetching brands:", err);
+            }
+        }
+    }
+
+    // User Click Action -> Just Updates URL
+    const handleCategorySelect = (category) => {
+        setSearchParams(prev => {
+            prev.set('category', category.id);
+            return prev;
+        });
     };
 
     return (
@@ -142,8 +191,10 @@ const Catalog = () => {
             <Sidebar
                 categories={categories}
                 activeCategory={activeCategory}
+                activeChildCategory={activeChildCategory}
                 activeSubcategory={activeSubcategory}
                 onSelectCategory={handleCategorySelect}
+                onSelectChildCategory={handleChildCategorySelect}
                 onSelectSubcategory={setActiveSubcategory}
             />
 
