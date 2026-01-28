@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 import {
     addToCartAPI,
@@ -57,16 +58,34 @@ export const CartProvider = ({ children }) => {
     const addToCart = async (product, quantity = 1, purchaseType = "NORMAL", epointsUsed = 0) => {
         if (!userId) return;
 
-        await addToCartAPI(userId, product.id, quantity, purchaseType, epointsUsed);
-        await fetchCart();
+        try {
+            await addToCartAPI(userId, product.id, quantity, purchaseType, epointsUsed);
+            await fetchCart();
+            toast.success("Added to cart!");
+        } catch (err) {
+            console.error("❌ addToCart failed:", err);
+            const msg = err.response?.data?.message || err.message || "Failed to add to cart";
+            // Check for specific Insufficient E-points message from backend
+            if(msg.includes("Insufficient e-points")) {
+                toast.error(`⚠️ ${msg}`);
+            } else {
+                toast.error(msg);
+            }
+        }
     };
 
     // =====================
     // REMOVE
     // =====================
     const removeFromCart = async (cartItemId) => {
-        await removeFromCartAPI(cartItemId);
-        await fetchCart();
+        try {
+            await removeFromCartAPI(cartItemId);
+            await fetchCart();
+            toast.success("Item removed");
+        } catch (err) {
+            console.error("❌ removeFromCart failed:", err);
+            toast.error("Failed to remove item");
+        }
     };
 
     // =====================
@@ -77,9 +96,11 @@ export const CartProvider = ({ children }) => {
 
         try {
             await updateCartQuantityAPI(cartItemId, quantity);
-            await fetchCart(); // ✅ now works
+            await fetchCart(); 
         } catch (err) {
             console.error("❌ updateQuantity failed:", err.response?.data || err);
+            const msg = err.response?.data?.message || "Failed to update quantity";
+            toast.error(msg);
         }
     };
 

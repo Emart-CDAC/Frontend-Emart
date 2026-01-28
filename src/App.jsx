@@ -1,5 +1,6 @@
 
 import { RouterProvider } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { router } from './router'
@@ -10,6 +11,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <RouterProvider router={router} />
+        <Toaster position="top-center" reverseOrder={false} />
       </CartProvider>
     </AuthProvider>
   )
