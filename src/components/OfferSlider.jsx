@@ -2,7 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import ProductCard from './ProductCard';
 
+import { useTranslation } from 'react-i18next';
+
 const OfferSlider = ({ products }) => {
+    const { t } = useTranslation();
+
     if (!products || products.length === 0) return null;
 
     // Duplicate products to create seamless loop effect if few products
@@ -12,8 +16,8 @@ const OfferSlider = ({ products }) => {
         <section className="py-8 bg-gradient-to-r from-pink-50 to-purple-50 rounded-3xl overflow-hidden my-12 relative">
              <div className="px-8 mb-6 flex items-center justify-between relative z-10">
                 <div>
-                     <span className="text-red-500 font-bold tracking-wider uppercase text-sm">Limited Time Deals</span>
-                     <h2 className="text-3xl font-extrabold text-gray-900 mt-1">Mega Offers ⚡</h2>
+                     <span className="text-red-500 font-bold tracking-wider uppercase text-sm">{t('limitedTime')}</span>
+                     <h2 className="text-3xl font-extrabold text-gray-900 mt-1">{t('megaOffers')} ⚡</h2>
                 </div>
              </div>
 
@@ -39,7 +43,7 @@ const OfferSlider = ({ products }) => {
                     100% { transform: translateX(-50%); }
                 }
                 .animate-scroll {
-                    animation: scroll 40s linear infinite;
+                    animation: scroll 80s linear infinite;
                 }
                 .hover\\:pause:hover {
                     animation-play-state: paused;

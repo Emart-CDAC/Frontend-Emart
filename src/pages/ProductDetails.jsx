@@ -80,8 +80,12 @@ const ProductDetails = () => {
             </Link>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="bg-gray-100 rounded-xl overflow-hidden">
-                    <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                <div className="bg-white rounded-xl overflow-hidden h-[500px] flex items-center justify-center p-6 border border-gray-200 shadow-sm">
+                    <img 
+                        src={imageUrl} 
+                        alt={product.name} 
+                        className="w-full h-full object-contain" 
+                    />
                 </div>
 
                 <div>
