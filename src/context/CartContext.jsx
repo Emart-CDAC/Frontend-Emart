@@ -41,7 +41,9 @@ export const CartProvider = ({ children }) => {
             totalAmount: data.finalPayableAmount,
             usedEpoints: data.usedEpoints,
             earnedEpoints: data.earnedEpoints,
-            availableEpoints: data.availableEpoints
+            availableEpoints: data.availableEpoints,
+            gstAmount: data.gstAmount,
+            offerDiscount: data.offerDiscount
         });
     }, [userId]);
 

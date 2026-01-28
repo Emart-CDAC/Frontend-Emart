@@ -25,16 +25,24 @@ const ProductCard = ({ product }) => {
 
     const isCardHolder = user?.type === 'CARDHOLDER';
 
-    // Determine price based on schema (Backend: flat fields, Mock: nested object)
-    const normalPrice = product.normalPrice !== undefined ? product.normalPrice : product.price?.normal;
-    const cardPrice = product.ecardPrice !== undefined ? product.ecardPrice : product.price?.cardHolder;
+    // Determine pricing
+    const discountPercent = product.discountPercent || 0;
+    const normalPrice = product.normalPrice !== undefined ? product.normalPrice : (product.price?.normal || 0);
+    
+    // Calculate effective price (Frontend calculation to match Backend logic)
+    let effectivePrice = normalPrice;
+    if (discountPercent > 0) {
+        effectivePrice = normalPrice - (normalPrice * discountPercent / 100);
+    }
 
-    const price = isCardHolder ? cardPrice : normalPrice;
-    const originalPrice = normalPrice;
+    // Cardholder logic: If card price is lower than effective price, they might pay that? 
+    // Or does discount override? Assuming discount applies to normal price.
+    // Let's display effective price as the main selling price.
+    const priceToDisplay = effectivePrice;
+    const isDiscounted = discountPercent > 0;
 
     const imageUrl = getProductImageUrl(product.imageUrl || product.image);
-    const rating = product.rating || 4.5; // Default if missing
-    // Backend has brand on subCategory
+    const rating = product.rating || 4.5;
     const brand = product.brand || product.subCategory?.brand || "Generic";
 
     return (
@@ -53,10 +61,10 @@ const ProductCard = ({ product }) => {
                     onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=No+Image'; }}
                 />
                 
-                {/* Overlay Badge for Discount if applicable */}
-                {isCardHolder && (originalPrice > price) && (
-                    <div className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
-                        SAVE ₹{Math.round(originalPrice - price)}
+                {/* Discount Badge */}
+                {isDiscounted && (
+                    <div className="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-extrabold px-2 py-1 rounded-full shadow-md">
+                        {discountPercent}% OFF
                     </div>
                 )}
                 
@@ -77,20 +85,17 @@ const ProductCard = ({ product }) => {
                 <div className="mt-auto pt-3 border-t border-dashed border-gray-100">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex flex-col">
-                           {isCardHolder && (originalPrice > price) && (
-                                <span className="text-xs text-gray-400 line-through font-medium">₹{originalPrice}</span>
+                            {isDiscounted ? (
+                                <>
+                                    <span className="text-xs text-gray-400 line-through font-medium">₹{normalPrice}</span>
+                                    <span className="text-2xl font-bold text-gray-900">₹{priceToDisplay.toFixed(2)}</span>
+                                </>
+                            ) : (
+                                <span className="text-2xl font-bold text-gray-900">₹{normalPrice}</span>
                             )}
-                            <span className="text-2xl font-bold text-gray-900">₹{price}</span>
                         </div>
                         
-                         {isCardHolder && product.pointsRedemption && (
-                            <div className="text-right">
-                                <span className="block text-[10px] text-gray-400 uppercase font-bold tracking-wider">Or Pay</span>
-                                <span className="text-xs text-blue-600 font-bold">
-                                    {product.pointsRedemption.points} pts + ₹{product.pointsRedemption.cashComponent}
-                                </span>
-                            </div>
-                        )}
+                         {/* Optional points display if needed, removing card holder specific for now to focus on discount */}
                     </div>
 
                     <Button

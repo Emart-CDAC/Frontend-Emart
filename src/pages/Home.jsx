@@ -4,13 +4,15 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 // import { CATEGORIES } from '../data/mockData'; // REMOVED
 import ProductCard from '../components/ProductCard';
+import OfferSlider from '../components/OfferSlider';
 import Button from '../components/Button';
 import { getAllProducts } from '../services/productService';
 import { getAllCategories } from '../services/categoryService';
 
 const Home = () => {
-    // State for New Arrivals
+    // State for New Arrivals and Offers
     const [newArrivals, setNewArrivals] = useState([]);
+    const [offerProducts, setOfferProducts] = useState([]);
     const [categories, setCategories] = useState([]);
 
     useEffect(() => {
@@ -18,7 +20,13 @@ const Home = () => {
             try {
                 // Fetch Products
                 const productRes = await getAllProducts();
-                setNewArrivals(productRes.data.slice(0, 4));
+                const allProducts = productRes.data;
+                
+                // Offers: discountPercent > 0
+                const offers = allProducts.filter(p => p.discountPercent > 0);
+                setOfferProducts(offers);
+
+                setNewArrivals(allProducts.slice(0, 4));
 
                 // Fetch Categories
                 const categoryRes = await getAllCategories();
@@ -35,16 +43,28 @@ const Home = () => {
     // For now, let's use a placeholder or check if I missed image field in Category.java.
     // Category.java had: categoryId, categoryName, parentCategory. No image.
     // I can use a consistent placeholder or random Unsplash one for demo.
-    const getCategoryImage = (catId) => {
-        // Deterministic mock images for demo purposes since backend lacks them
-        const images = [
-            'https://images.unsplash.com/photo-1498049381961-a59a96bcb742?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&auto=format&fit=crop&q=80'
-        ];
-        return images[catId % images.length] || images[0];
+    const getCategoryImage = (cat) => {
+        const name = cat.categoryName.toLowerCase().replace(/\s+/g, '');
+        // Map based on file names found in static/images
+        const imageMap = {
+            'electronics': 'electronic.jpg',
+            'fashion': 'fashion.jpg',
+            'homeappliance': 'home.jpg',
+            'beauty&personalcare': 'beautyandpersonalcare.jpg', 
+            'beautyandpersonalcare': 'beautyandpersonalcare.jpg',
+            'toysandbabyproducts': 'toys.jpg',
+            'groceries': 'groceries.jpg',
+            'decor': 'decor.jpg', 
+            'stationary': 'stationery.jpg'
+        };
+
+        const filename = imageMap[name];
+        if (filename) {
+            return `http://localhost:8080/images/${filename}`;
+        }
+        
+        // Fallback
+        return 'https://images.unsplash.com/photo-1472851294608-4155121100f9?w=800&auto=format&fit=crop&q=80';
     };
 
     return (
@@ -73,57 +93,41 @@ const Home = () => {
                     </Link>
                 </div>
             </section>
+            
+            {/* Offer Slider */}
+            {offerProducts.length > 0 && (
+                <OfferSlider products={offerProducts} />
+            )}
 
             {/* Categories */}
-            <section>
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900">Shop by Category</h2>
+            <section className="px-4">
+                <div className="text-center mb-10">
+                    <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Shop by Category</h2>
+                    <p className="text-gray-600 max-w-2xl mx-auto">
+                        Explore our wide range of products across various categories. Find exactly what you need.
+                    </p>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                
+                <div className="flex flex-wrap justify-center gap-8">
                     {categories.map((cat) => (
-                        <Link key={cat.categoryId} to={`/catalog?category=${cat.categoryId}`} className="group">
-                            <div className="relative rounded-xl overflow-hidden aspect-square mb-3 shadow-md">
-                                <img
-                                    src={getCategoryImage(cat.categoryId)}
-                                    alt={cat.categoryName}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                />
-                                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-white text-xl font-bold">{cat.categoryName}</span>
+                        <Link key={cat.categoryId} to={`/catalog?category=${cat.categoryId}`} className="group relative w-64 h-80 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                            <img
+                                src={getCategoryImage(cat)}
+                                alt={cat.categoryName}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                            
+                            <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                                <h3 className="text-white text-2xl font-bold mb-2">{cat.categoryName}</h3>
+                                <div className="flex items-center text-blue-300 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0 delay-75">
+                                    <span>Explore</span>
+                                    <ArrowRight className="ml-2 w-4 h-4" />
                                 </div>
                             </div>
                         </Link>
                     ))}
                 </div>
-            </section>
-
-            {/* New Arrivals */}
-            <section>
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900">New Arrivals</h2>
-                    <Link to="/category/1" className="text-blue-600 font-medium hover:underline flex items-center">
-                        View All <ArrowRight className="ml-2 w-4 h-4" />
-                    </Link>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {newArrivals.map(product => (
-                        <ProductCard key={product.id} product={product} />
-                    ))}
-                </div>
-            </section>
-
-            {/* Loyalty Banner */}
-            <section className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 md:p-12 text-white flex flex-col md:flex-row items-center justify-between shadow-xl">
-                <div className="mb-6 md:mb-0">
-                    <h2 className="text-3xl font-bold mb-3">e-MART Loyalty Program</h2>
-                    <p className="text-blue-100 max-w-xl">
-                        Earn points on every purchase! 10% of your bill value is credited back as e-Points. Redeem them for exclusive products.
-                    </p>
-                </div>
-                <Button variant="secondary" size="lg" className="bg-white text-blue-700 hover:bg-gray-100 border-none shrink-0">
-                    Check My Points
-                </Button>
             </section>
 
         </div>
