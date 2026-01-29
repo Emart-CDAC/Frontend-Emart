@@ -10,7 +10,7 @@ const Dashboard = () => {
     const [stats, setStats] = useState(null);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-
+    const [productOffers, setProductOffers] = useState([]);
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadResult, setUploadResult] = useState(null);
     const [uploading, setUploading] = useState(false);
@@ -28,13 +28,16 @@ const Dashboard = () => {
             const token = localStorage.getItem('emart_token');
             const headers = { Authorization: `Bearer ${token}` };
 
-            const [statsRes, ordersRes] = await Promise.all([
+            const [statsRes, ordersRes, productOffersRes] = await Promise.all([
                 axios.get('http://localhost:8080/api/admin/dashboard/stats', { headers }),
-                axios.get('http://localhost:8080/api/admin/dashboard/orders?page=0&size=10', { headers })
+                axios.get('http://localhost:8080/api/admin/dashboard/orders?page=0&size=10', { headers }),
+                axios.get('http://localhost:8080/api/admin/analytics/product-offers-inventory', { headers })
             ]);
 
             setStats(statsRes.data);
             setOrders(ordersRes.data.content || ordersRes.data);
+            setProductOffers(productOffersRes.data);
+
         } catch (error) {
             console.error('Failed to fetch dashboard data:', error);
         } finally {
@@ -77,11 +80,11 @@ const Dashboard = () => {
 
         } catch (error) {
             console.error('Upload error:', error);
-            const errMsg = error.response?.data?.message || 
-                           (typeof error.response?.data === 'string' ? error.response.data : null) ||
-                           error.message ||
-                           'Upload failed';
-            
+            const errMsg = error.response?.data?.message ||
+                (typeof error.response?.data === 'string' ? error.response.data : null) ||
+                error.message ||
+                'Upload failed';
+
             setUploadResult(errMsg);
         } finally {
             setUploading(false);
@@ -142,6 +145,48 @@ const Dashboard = () => {
                     <div className="bg-white p-6 rounded shadow">
                         <div className="text-gray-500 text-sm">Pending Orders</div>
                         <div className="text-3xl font-bold text-orange-600">{stats?.pendingOrders || 0}</div>
+                    </div>
+                </div>
+
+                {/* Product Offers & Inventory */}
+                <div className="bg-white p-6 rounded shadow mt-8">
+                    <h2 className="text-xl font-bold mb-4">
+                        Product Offers & Inventory
+                    </h2>
+
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="px-4 py-2 text-left">Product</th>
+                                    <th className="px-4 py-2 text-left">Discount / Offer</th>
+                                    <th className="px-4 py-2 text-center">Available Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {productOffers.length > 0 ? (
+                                    productOffers.map((item, index) => (
+                                        <tr key={index} className="border-t hover:bg-gray-50">
+                                            <td className="px-4 py-2 font-medium">
+                                                {item.productName}
+                                            </td>
+                                            <td className="px-4 py-2">
+                                                {item.discountOffer}
+                                            </td>
+                                            <td className="px-4 py-2 text-center font-semibold">
+                                                {item.quantity}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="3" className="text-center py-4 text-gray-500">
+                                            No product data available
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
