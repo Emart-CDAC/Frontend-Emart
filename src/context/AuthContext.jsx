@@ -135,7 +135,19 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         try {
-            await api.post(`/users/register`, userData);
+            const response = await api.post(`/users/register`, userData);
+            
+            // Check if token is returned (Auto-login)
+            const { token } = response.data;
+            if (token) {
+                localStorage.setItem('emart_token', token);
+                const decoded = decodeToken(token);
+                if (decoded?.userId) {
+                    await refreshUser(decoded.userId, decoded.sub, decoded.role);
+                }
+                return { success: true, message: "Registration successful! You are now logged in." };
+            }
+
             return { success: true, message: "Registration successful! Please login." };
         } catch (error) {
             console.error("Registration failed:", error);
