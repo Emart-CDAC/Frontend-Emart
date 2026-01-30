@@ -43,7 +43,7 @@ const OfferSlider = ({ products }) => {
                     100% { transform: translateX(-50%); }
                 }
                 .animate-scroll {
-                    animation: scroll 80s linear infinite;
+                    animation: scroll 100s linear infinite;
                 }
                 .hover\\:pause:hover {
                     animation-play-state: paused;

@@ -8,8 +8,11 @@ const Dashboard = () => {
     const navigate = useNavigate();
 
     const [stats, setStats] = useState(null);
-    const [orders, setOrders] = useState([]);
+    const [analyticsData, setAnalyticsData] = useState([]);
+    const [analyticsError, setAnalyticsError] = useState(null);
+    // const [orders, setOrders] = useState([]); // Removed as per request
     const [loading, setLoading] = useState(true);
+    const [showDiscountedOnly, setShowDiscountedOnly] = useState(false); // Filter state
 
     const [uploadFile, setUploadFile] = useState(null);
     const [uploadResult, setUploadResult] = useState(null);
@@ -28,15 +31,17 @@ const Dashboard = () => {
             const token = localStorage.getItem('emart_token');
             const headers = { Authorization: `Bearer ${token}` };
 
-            const [statsRes, ordersRes] = await Promise.all([
+            const [statsRes, analyticsRes] = await Promise.all([
                 axios.get('http://localhost:8080/api/admin/dashboard/stats', { headers }),
-                axios.get('http://localhost:8080/api/admin/dashboard/orders?page=0&size=10', { headers })
+                // Fetch from the integration endpoint we created
+                axios.get('http://localhost:8080/api/admin/analytics/product-offers-inventory', { headers })
             ]);
 
             setStats(statsRes.data);
-            setOrders(ordersRes.data.content || ordersRes.data);
+            setAnalyticsData(analyticsRes.data);
         } catch (error) {
             console.error('Failed to fetch dashboard data:', error);
+            setAnalyticsError('Could not load .NET analytics data. Ensure services are running.');
         } finally {
             setLoading(false);
         }
@@ -88,28 +93,11 @@ const Dashboard = () => {
         }
     };
 
+    /* 
     const handleStatusUpdate = async (orderId, newStatus) => {
-        try {
-            const token = localStorage.getItem('emart_token');
-            const headers = { Authorization: `Bearer ${token}` };
-
-            // Backend: @PutMapping("/orders/{orderId}/status") with @RequestParam OrderStatus status
-            await axios.put(
-                `http://localhost:8080/api/admin/dashboard/orders/${orderId}/status`,
-                null,
-                {
-                    params: { status: newStatus },
-                    headers
-                }
-            );
-
-            // Refresh dashboard data to show the updated status
-            fetchDashboardData();
-        } catch (error) {
-            console.error('Failed to update status:', error);
-            alert('Failed to update status: ' + (error.response?.data?.message || error.message));
-        }
-    };
+       // ... removed for now as Orders table is replaced by Analytics
+    }; 
+    */
 
     if (loading) {
         return (
@@ -188,50 +176,55 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Orders */}
+                {/* Product Analytics from .NET Backend */}
                 <div className="bg-white p-6 rounded shadow">
-                    <h2 className="text-xl font-bold mb-4">Recent Orders</h2>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold">Product Inventory & Discounts </h2>
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="discountFilter"
+                                checked={showDiscountedOnly}
+                                onChange={(e) => setShowDiscountedOnly(e.target.checked)}
+                                className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                            />
+                            <label htmlFor="discountFilter" className="ml-2 text-sm font-medium text-gray-900 select-none cursor-pointer">
+                                Show only discounted products
+                            </label>
+                        </div>
+                    </div>
 
                     <table className="min-w-full">
                         <thead className="bg-gray-100">
                             <tr>
-                                <th className="px-4 py-2 text-left">Order ID</th>
-                                <th className="px-4 py-2 text-left">Customer</th>
-                                <th className="px-4 py-2 text-left">Total</th>
-                                <th className="px-4 py-2 text-left">Status</th>
-                                <th className="px-4 py-2 text-left">Date</th>
+                                <th className="px-4 py-2 text-left">Product Name</th>
+                                <th className="px-4 py-2 text-left">Discount Offer</th>
+                                <th className="px-4 py-2 text-left">Available Quantity</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {orders.length > 0 ? (
-                                orders.map(order => (
-                                    <tr key={order.orderId} className="border-t">
-                                        <td className="px-4 py-2">#{order.orderId}</td>
-                                        <td className="px-4 py-2">{order.customer?.fullName || 'N/A'}</td>
-                                        <td className="px-4 py-2">₹{order.totalAmount}</td>
+                            {analyticsData.length > 0 ? (
+                                analyticsData
+                                    .filter(item => !showDiscountedOnly || item.discount_Offer !== "No discount available")
+                                    .map((item, index) => (
+                                    <tr key={index} className="border-t">
+                                        <td className="px-4 py-2 font-medium text-gray-900">{item.product_Name}</td>
+                                        <td className="px-4 py-2 text-green-600 font-bold">{item.discount_Offer}</td>
                                         <td className="px-4 py-2">
-                                            <select
-                                                value={order.status || order.orderStatus}
-                                                onChange={(e) => handleStatusUpdate(order.orderId, e.target.value)}
-                                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1"
-                                            >
-                                                <option value="pending">Pending</option>
-                                                <option value="confirmed">Confirmed</option>
-                                                <option value="packed">Packed</option>
-                                                <option value="shipped">Shipped</option>
-                                                <option value="delivered">Delivered</option>
-                                                <option value="cancelled">Cancelled</option>
-                                            </select>
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            {new Date(order.orderDate).toLocaleDateString()}
+                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${item.quantity < 10 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                {item.quantity}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="text-center py-4 text-gray-500">
-                                        No orders found
+                                    <td colSpan="3" className="text-center py-8 text-gray-500">
+                                        {analyticsError ? (
+                                            <span className="text-red-500">Error loading analytics: {analyticsError}</span>
+                                        ) : (
+                                            "Loading analytics data..."
+                                        )}
                                     </td>
                                 </tr>
                             )}
