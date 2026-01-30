@@ -167,7 +167,7 @@ const Dashboard = () => {
                 {/* Product Analytics from .NET Backend (The working one) */}
                 <div className="bg-white p-6 rounded shadow">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold">Product Inventory & Discounts (Powered by .NET Analytics)</h2>
+                        <h2 className="text-xl font-bold">Product Inventory & Discounts </h2>
                         <div className="flex items-center">
                             <input
                                 type="checkbox"
