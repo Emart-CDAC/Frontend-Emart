@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { CATEGORIES } from '../data/mockData';
 import Button from './Button';
+import LanguageSwitcher from './LanguageSwitcher';
 
 import { getAllCategories } from '../services/categoryService';
 
@@ -142,8 +143,10 @@ const Navbar = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearch}
-              className="w-64 px-4 py-1.5 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-48 lg:w-64 px-4 py-1.5 text-sm border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            
+            <LanguageSwitcher />
 
             {/* RIGHT SECTION */}
             <div ref={profileRef} className="relative flex items-center gap-4">

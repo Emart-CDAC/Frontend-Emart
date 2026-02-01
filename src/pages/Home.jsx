@@ -9,7 +9,10 @@ import Button from '../components/Button';
 import { getAllProducts } from '../services/productService';
 import { getAllCategories } from '../services/categoryService';
 
+import { useTranslation } from 'react-i18next';
+
 const Home = () => {
+    const { t } = useTranslation();
     // State for New Arrivals and Offers
     const [newArrivals, setNewArrivals] = useState([]);
     const [offerProducts, setOfferProducts] = useState([]);
@@ -49,13 +52,13 @@ const Home = () => {
         const imageMap = {
             'electronics': 'electronic.jpg',
             'fashion': 'fashion.jpg',
-            'home': 'home.jpg',
+            'homeappliance': 'home.jpg',
             'beauty&personalcare': 'beautyandpersonalcare.jpg', 
             'beautyandpersonalcare': 'beautyandpersonalcare.jpg',
-            'toys': 'toys.jpg',
+            'toysandbabyproducts': 'toys.jpg',
             'groceries': 'groceries.jpg',
             'decor': 'decor.jpg', 
-            'stationery': 'stationery.jpg'
+            'stationary': 'stationery.jpg'
         };
 
         const filename = imageMap[name];
@@ -81,14 +84,14 @@ const Home = () => {
                 </div>
                 <div className="relative z-10 p-12 md:p-20 flex flex-col items-start justify-center min-h-[500px]">
                     <h1 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight leading-tight">
-                        Experience the <br /> <span className="text-blue-400">Future of Shopping</span>
+                       {t('heroTitle')}
                     </h1>
                     <p className="text-xl text-gray-200 mb-8 max-w-lg">
-                        Exclusive deals for e-MART members. Join today and start saving with our unique point redemption system.
+                        {t('heroSubtitle')}
                     </p>
                     <Link to="/emart-card">
                         <Button variant="primary" size="lg" className="rounded-full px-8 bg-blue-600 hover:bg-blue-500 border-none">
-                            Get Your e-MART Card
+                            {t('getCard')}
                         </Button>
                     </Link>
                 </div>
@@ -102,9 +105,9 @@ const Home = () => {
             {/* Categories */}
             <section className="px-4">
                 <div className="text-center mb-10">
-                    <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Shop by Category</h2>
+                    <h2 className="text-4xl font-extrabold text-gray-900 mb-4">{t('shopCategory')}</h2>
                     <p className="text-gray-600 max-w-2xl mx-auto">
-                        Explore our wide range of products across various categories. Find exactly what you need.
+                        {t('categorySub')}
                     </p>
                 </div>
                 
