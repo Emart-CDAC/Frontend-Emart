@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ShoppingCart, Star, ShieldCheck, Truck, ArrowLeft } from 'lucide-react';
 import { getProductById, getProductImageUrl } from '../services/productService';
@@ -9,6 +9,7 @@ import Button from '../components/Button';
 const ProductDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -19,11 +20,11 @@ const ProductDetails = () => {
 
     // ✅ SINGLE source of truth
     const resolvedUserId = user?.id;
+    // Check eligibility
+    const isCardHolder = user?.type === 'CARDHOLDER';
 
     const [purchaseType, setPurchaseType] = useState('NORMAL');
     const [partialPoints, setPartialPoints] = useState(0);
-
-
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -39,16 +40,20 @@ const ProductDetails = () => {
         fetchProduct();
     }, [id]);
 
-    if (loading) return <div className="text-center py-20">Loading...</div>;
-    if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
-    if (!product) return null;
-
-    const price = product.normalPrice;
-    const discount = product.discountPercent || 0;
+    const price = product?.normalPrice || 0;
+    const discount = product?.discountPercent || 0;
     const isDiscounted = discount > 0;
     const offerPrice = isDiscounted ? Math.ceil(price - (price * discount / 100)) : price;
 
-    const imageUrl = getProductImageUrl(product.imageUrl);
+    // Handle incoming state from ProductCard
+    useEffect(() => {
+        if (product && !isDiscounted && isCardHolder && location.state?.redeemEpoints) {
+            setPurchaseType('PARTIAL_EP');
+            setPartialPoints(Math.ceil(price * 0.37));
+        }
+    }, [product, isDiscounted, isCardHolder, location.state, price]);
+
+    const imageUrl = product ? getProductImageUrl(product.imageUrl) : '';
 
     // ✅ Enforce Normal Purchase for discounted items
     const handleAddToCart = () => {
@@ -65,13 +70,20 @@ const ProductDetails = () => {
              epointsUsed = 0;
         } else {
              if (purchaseType === 'PARTIAL_EP') {
-                epointsUsed = partialPoints;
+                // FIXED 37%
+                epointsUsed = Math.ceil(price * 0.37);
+             } else if (purchaseType === 'FULL_EP') {
+                 // Backend handles calculation usually but let's be explicit
+                 epointsUsed = Math.ceil(price);
              }
-             // FULL_EP → backend calculates or sends 0 depending on logic, keeping existing flow
         }
 
         addToCart(product, 1, finalPurchaseType, epointsUsed);
     };
+
+    if (loading) return <div className="text-center py-20">Loading...</div>;
+    if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
+    if (!product) return null;
 
     return (
         <div className="max-w-7xl mx-auto p-4">
@@ -114,56 +126,64 @@ const ProductDetails = () => {
                             <div className="text-3xl font-bold mb-4">₹{price}</div>
                         )}
 
-                        {!isDiscounted && (
+                        {!isDiscounted && isCardHolder && (
                             <>
                                 {/* NORMAL */}
-                                <label className="flex items-center gap-3">
+                                <label className="flex items-center gap-3 cursor-pointer">
                                     <input
                                         type="radio"
                                         checked={purchaseType === 'NORMAL'}
                                         onChange={() => setPurchaseType('NORMAL')}
+                                        className="w-4 h-4 text-blue-600"
                                     />
                                     Normal Purchase
                                 </label>
 
                                 {/* PARTIAL */}
-                                <label className="flex flex-col gap-2 mt-2">
+                                <label className="flex flex-col gap-2 mt-3 cursor-pointer">
                                     <div className="flex items-center gap-3">
                                         <input
                                             type="radio"
                                             checked={purchaseType === 'PARTIAL_EP'}
                                             onChange={() => {
                                                 setPurchaseType('PARTIAL_EP');
-                                                setPartialPoints(Math.ceil(price * 0.5));
+                                                setPartialPoints(Math.ceil(price * 0.37));
                                             }}
+                                            className="w-4 h-4 text-blue-600"
                                         />
                                         Partial e-Points
                                     </div>
 
                                     {purchaseType === 'PARTIAL_EP' && (
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={Math.ceil(price)}
-                                            value={partialPoints}
-                                            onChange={(e) =>
-                                                setPartialPoints(Math.min(+e.target.value || 0, Math.ceil(price)))
-                                            }
-                                            className="border p-2 rounded"
-                                        />
+                                        <div className="ml-7 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm">
+                                            <p className="font-bold text-blue-800">37% e-Points applied (fixed)</p>
+                                            <p className="text-blue-600 mt-1">
+                                                Points used: <span className="font-mono font-bold">{Math.ceil(price * 0.37)}</span>
+                                            </p>
+                                            <p className="text-blue-600">
+                                                Payable: <span className="font-mono font-bold">₹{Math.floor(price * 0.63)}</span> <span className="text-xs">+ taxes</span>
+                                            </p>
+                                        </div>
                                     )}
                                 </label>
 
                                 {/* FULL */}
-                                <label className="flex items-center gap-3 mt-2">
+                                <label className="flex items-center gap-3 mt-3 cursor-pointer">
                                     <input
                                         type="radio"
                                         checked={purchaseType === 'FULL_EP'}
                                         onChange={() => setPurchaseType('FULL_EP')}
+                                        className="w-4 h-4 text-blue-600"
                                     />
-                                    Full e-Points ({Math.ceil(price)})
+                                    Full e-Points ({Math.ceil(price)} pts)
                                 </label>
                             </>
+                        )}
+                        
+                        {!isCardHolder && !isDiscounted && (
+                             <div className="mt-4 p-3 bg-gray-100 rounded text-sm text-gray-500 italic">
+                                 e-Points redemption available for e-MART Card holders only.
+                             </div>
                         )}
                     </div>
 

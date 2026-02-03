@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Trash2, Plus, Minus, Tag, ShieldCheck, ShoppingCart, Crown } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -106,7 +107,56 @@ const Cart = () => {
                                             </button>
                                             <span className="w-10 text-center font-semibold text-gray-700">{quantity}</span>
                                             <button
-                                                onClick={() => updateQuantity(item.cartItemId, quantity + 1)}
+                                                onClick={() => {
+                                                    const newQty = quantity + 1;
+                                                    
+                                                    // E-Points Validation
+                                                    if (item.purchaseType === 'FULL_EP' || item.purchaseType === 'PARTIAL_EP') {
+                                                        const available = cartSummary?.availableEpoints || 0;
+                                                        const currentCartUsed = cartSummary?.usedEpoints || 0;
+                                                        const itemUsed = item.epointsUsed || 0;
+                                                        
+                                                        // Calculate new required points for this item
+                                                        let newRequired = 0;
+                                                        const itemPrice = item.discountedPrice || item.price || 0;
+                                                        
+                                                        if (item.purchaseType === 'FULL_EP') {
+                                                            newRequired = Math.ceil(itemPrice * newQty);
+                                                        } else {
+                                                            newRequired = Math.ceil(itemPrice * newQty * 0.37);
+                                                        }
+                                                        
+                                                        // Total points needed = (Current Cart Total - Old Item Points) + New Item Points
+                                                        const projectedTotalUsed = (currentCartUsed - itemUsed) + newRequired;
+                                                        
+                                                        if (projectedTotalUsed > available) {
+                                                            // Calculate shortfall for better message if needed, or just generic
+                                                            // Using toast from context or imported? 
+                                                            // We need to import toast if not available. 
+                                                            // toast is not imported in this file. 
+                                                            // Let's assume toast is globally available or use alert first? 
+                                                            // User asked for "toast / snackbar". 
+                                                            // CartContext uses toast. Let's see if we can use it.
+                                                            // Ideally we should import toast.
+                                                            // For now using window.alert or console error if toast import missing, 
+                                                            // BUT I will add toast import in next step.
+                                                            // Actually, let's try to grab toast if it's not there?
+                                                            // Wait, I can't add import in this block.
+                                                            // I will use a custom function passed from props? No.
+                                                            // I will add `import toast from 'react-hot-toast';` in a separate edit.
+                                                            // Proceeding with logic.
+                                                            
+                                                            // Dispatch error event or use existing toast mechanism in app?
+                                                            // The user said "Show an exception message using a React toggler / toast / snackbar library."
+                                                            // I'll assume I can add the import.
+                                                            
+                                                            toast.error(`You do not have sufficient e-Points to add another unit of this product.\nRequired: ${projectedTotalUsed}, Available: ${available}`);
+                                                            return;
+                                                        }
+                                                    }
+                                                    
+                                                    updateQuantity(item.cartItemId, newQty);
+                                                }}
                                                 className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-white hover:text-blue-600 rounded-r-lg transition-colors"
                                             >
                                                 <Plus className="w-4 h-4" />
