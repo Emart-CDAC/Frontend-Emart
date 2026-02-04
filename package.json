@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:spring": "vite --mode spring",
+    "dev:dotnet": "vite --mode dotnet",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
