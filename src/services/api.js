@@ -13,6 +13,24 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Auto-logout on 401 (token expired or invalid)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Clear all auth data
+            localStorage.removeItem('emart_token');
+            localStorage.removeItem('emart_user');
+            
+            // Redirect to login if not already there
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login?expired=true';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const getAllProducts = () => {
     return api.get('/products');
 };

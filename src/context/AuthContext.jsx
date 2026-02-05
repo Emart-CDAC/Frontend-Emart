@@ -2,6 +2,55 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 // import axios from 'axios'; // REMOVED: Use configured api instance
 import api from '../services/api';
 
+// ========== SESSION STORAGE UTILITIES ==========
+// Store session-specific data (cleared when browser tab closes)
+export const sessionStorageUtils = {
+    // Save data to sessionStorage
+    setItem: (key, value) => {
+        try {
+            sessionStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.error('SessionStorage setItem error:', e);
+        }
+    },
+    
+    // Get data from sessionStorage
+    getItem: (key) => {
+        try {
+            const item = sessionStorage.getItem(key);
+            return item ? JSON.parse(item) : null;
+        } catch (e) {
+            console.error('SessionStorage getItem error:', e);
+            return null;
+        }
+    },
+    
+    // Remove item from sessionStorage
+    removeItem: (key) => {
+        try {
+            sessionStorage.removeItem(key);
+        } catch (e) {
+            console.error('SessionStorage removeItem error:', e);
+        }
+    },
+    
+    // Clear all sessionStorage
+    clear: () => {
+        try {
+            sessionStorage.clear();
+        } catch (e) {
+            console.error('SessionStorage clear error:', e);
+        }
+    }
+};
+
+// Session storage keys
+export const SESSION_KEYS = {
+    CHECKOUT_STATE: 'emart_checkout_state',
+    CART_BACKUP: 'emart_cart_backup',
+    LAST_VIEWED_PRODUCT: 'emart_last_product'
+};
+
 const AuthContext = createContext();
 
 // Decode JWT safely (Robust implementation handling Base64Url)
